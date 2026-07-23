@@ -1,0 +1,17 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# environment variables / secrets
+.env
+.env.*
+
+# local data
+data/
+
+# local assistant/tool metadata
+.agents/
+.codex/
+

@@ -1,0 +1,83 @@
+import { randomUUID } from "node:crypto";
+import type { EventService } from "../event/service.js";
+
+export interface MessageInput {
+    role: "user" | "assistant";
+    content: string;
+    status?: "success" | "error";
+    error?: string | null;
+}
+
+export class SessionService {
+    constructor(private readonly events: EventService) {}
+
+    createSession(title = ""): string {
+        const sessionId = `ses_${randomUUID()}`;
+
+        this.events.publish({
+            aggrateId: sessionId,
+            type: "session.created",
+            data: {
+                title: title,
+                timeCreate: Date.now(),
+            },
+        });
+
+        return sessionId;
+    }
+
+    appendMessage(
+        sessionId: string,
+        input: MessageInput
+    ): string {
+        const messageId = `msg_${randomUUID()}`;
+
+        this.events.publish({
+            aggrateId: sessionId,
+            type: 'message.append',
+            data: {
+                messageId: messageId,
+                role: input.role,
+                content: input.content,
+                status: input.status ?? "success",
+                error: input.error ?? null,
+                timeCreate: Date.now(),
+            },
+        });
+
+        return messageId;
+    }
+
+    stepFailed(
+        sessionId: string,
+        messageId: string,
+        error: string,
+    ): void {
+        this.events.publish({
+            aggrateId: sessionId,
+            type: "step.failed",
+            data: {
+                messageId: messageId,
+                error: error,
+            },
+        });
+    }
+
+    archiveSession(sessionId: string): void {
+        this.events.publish({
+            aggrateId: sessionId,
+            type: "session.archived",
+            data: {
+                timeArchived: Date.now(),
+            },
+        });
+    }
+
+    deleteSession(sessionId: string): void {
+        this.events.publish({
+            aggrateId: sessionId,
+            type: 'session.deleted',
+            data: {},
+        });
+    }
+}
