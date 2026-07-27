@@ -8,7 +8,7 @@ import {
 
 export const SessionTable = sqliteTable("session", {
     id: text("id").primaryKey(),
-    title: text("title").notNull().default(""),
+    title: text("title").notNull().default(" "),
     timeCreate: integer("time_create").notNull(),
     timeArchived: integer("time_archived")
 });

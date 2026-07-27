@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-import { chatCommand } from "./command/chat.js";
-import { archiveCommand } from "./command/archive.js"
-import { createCommand } from "./command/create.js";
-import { deleteCommand } from "./command/delete.js";
+import { runCommand } from "./command/run.js";
+import { archiveCommand } from "./command/session/archive.js"
+import { deleteCommand } from "./command/session/delete.js";
 import { parseArgs } from "./cliArgs.js";
 import { createRuntime } from "./runtime.js";
-import { run } from "node:test";
+import { listCommand } from "./command/session/list.js";
 
 async function main(): Promise<void> {
     const options = parseArgs(process.argv.slice(2));
@@ -13,8 +12,8 @@ async function main(): Promise<void> {
 
     try {
         switch (options.command) {
-            case "create": {
-                createCommand(runtime, options.title);
+            case "run": {
+                await runCommand(runtime, options.data);
 
                 return;
             }
@@ -31,14 +30,12 @@ async function main(): Promise<void> {
                 return;
             }
 
-            case "chat": {
-                await chatCommand(
-                    runtime,
-                    options.data,
-                );
+            case "list": {
+                listCommand(runtime);
 
                 return;
             }
+
         }
     } finally {
         runtime.client.close();

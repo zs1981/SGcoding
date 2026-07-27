@@ -8,7 +8,7 @@ import type { Runtime } from "../runtime.js";
 
 type ChatData = Extract<
     CliOptions,
-    { command: "chat"}
+    { command: "run"}
 >["data"];
 
 function toModelMessage(
@@ -33,18 +33,19 @@ function toModelMessage(
     };
 }
 
-export async function chatCommand(
+export async function runCommand(
     runtime: Runtime,
     data: ChatData
 ): Promise<void> {
     const input = data.input;
+    let sessionId = data.sessionId ?? runtime.sessions.createSession();
 
     if (!input) {
         throw new Error("message cannot be empty");
     }
 
     runtime.sessions.appendMessage(
-        data.sessionId,
+        sessionId,
         {
             role: "user",
             content: input,
@@ -52,7 +53,7 @@ export async function chatCommand(
         },
     )
 
-    const storeMessages = runtime.store.context(data.sessionId);
+    const storeMessages = runtime.store.context(sessionId);
 
     const modelMessages = storeMessages
         .filter((message: SessionMessage) => {
@@ -71,7 +72,7 @@ export async function chatCommand(
                 : String(error);
 
     runtime.sessions.appendMessage(
-        data.sessionId,
+        sessionId,
         {
             role: "assistant",
             content: "模型请求失败",
@@ -83,7 +84,7 @@ export async function chatCommand(
     };
 
     runtime.sessions.appendMessage(
-        data.sessionId,
+        sessionId,
         {
             role: "assistant",
             content: reply,

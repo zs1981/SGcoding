@@ -1,5 +1,5 @@
-import type { CliOptions } from "../cliArgs.js";
-import type { Runtime } from "../runtime.js"
+import type { CliOptions } from "../../cliArgs.js";
+import type { Runtime } from "../../runtime.js";
 
 type ArchiveData = Extract<
     CliOptions,

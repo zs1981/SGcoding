@@ -11,14 +11,13 @@ export interface MessageInput {
 export class SessionService {
     constructor(private readonly events: EventService) {}
 
-    createSession(title = ""): string {
+    createSession(): string {
         const sessionId = `ses_${randomUUID()}`;
 
         this.events.publish({
             aggrateId: sessionId,
             type: "session.created",
             data: {
-                title: title,
                 timeCreate: Date.now(),
             },
         });

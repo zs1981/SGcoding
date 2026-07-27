@@ -2,7 +2,6 @@ import type { AppDatabase } from "../database/database.js";
 
 export interface EventDataByType {
     "session.created": {
-        title: string;
         timeCreate:number;
     };
 

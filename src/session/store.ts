@@ -6,10 +6,10 @@ import {
 } from "../database/schema.js"
 
 export type SessionItem = Pick<
-    typeof SessionTable.$inferInsert,
+    typeof SessionTable.$inferSelect,
     "id" | "title" | "timeCreate"
 >;
-export type SessionMessage = typeof SessionMessageTable.$inferInsert;
+export type SessionMessage = typeof SessionMessageTable.$inferSelect;
 
 export class SessionStore {
     constructor(private readonly db: AppDatabase) {};

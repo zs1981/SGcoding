@@ -18,7 +18,6 @@ export function projectSessionEvent(
                 .insert(SessionTable)
                 .values({
                     id: event.aggregateId,
-                    title: event.data.title,
                     timeCreate: event.data.timeCreate,
                 })
                 .run();
