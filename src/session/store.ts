@@ -1,30 +1,66 @@
-import { asc, eq, isNull, and} from "drizzle-orm";
+import { desc, eq, isNull, and} from "drizzle-orm";
 import type { AppDatabase } from "../database/database.js";
 import {
     SessionMessageTable,
     SessionTable,
 } from "../database/schema.js"
+import { title } from "node:process";
 
 export type SessionItem = Pick<
     typeof SessionTable.$inferSelect,
-    "id" | "title" | "timeCreate"
+    "id" | "title" | "timeCreate" | "timeArchived"
 >;
 export type SessionMessage = typeof SessionMessageTable.$inferSelect;
+
+export type SessionListOptions = {
+    includeArchived?: boolean;
+    limit?: number;
+}
 
 export class SessionStore {
     constructor(private readonly db: AppDatabase) {};
 
-    list() : SessionItem[] {
+    get(sessionId: string): SessionItem | undefined {
         return this.db
             .select({
                 id: SessionTable.id,
                 title: SessionTable.title,
                 timeCreate: SessionTable.timeCreate,
+                timeArchived: SessionTable.timeArchived
             })
             .from(SessionTable)
-            .where(isNull(SessionTable.timeArchived))
-            .orderBy(asc(SessionTable.timeCreate))
-            .all()
+            .where(eq(SessionTable.id, sessionId))
+            .get();
+    }
+
+    list(options: SessionListOptions = {},) : SessionItem[] {
+        const {
+            includeArchived = false,
+            limit,
+        } = options;
+
+        if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
+                throw RangeError(
+                    "Session list limit must be a positive integer"
+                );
+            }
+        
+        const query = this.db
+            .select({
+                id: SessionTable.id,
+                title: SessionTable.title,
+                timeCreate: SessionTable.timeCreate,
+                timeArchived: SessionTable.timeArchived,
+            })
+            .from(SessionTable)
+            .where(includeArchived ? undefined : isNull(SessionTable.timeArchived))
+            .orderBy(
+                desc(SessionTable.timeCreate)
+            )
+        
+        return limit === undefined
+            ? query.all()
+            : query.limit(limit).all();
     }
 
     context(sessionId: string): SessionMessage[] {

@@ -15,7 +15,7 @@ export class SessionService {
         const sessionId = `ses_${randomUUID()}`;
 
         this.events.publish({
-            aggrateId: sessionId,
+            aggregateId: sessionId,
             type: "session.created",
             data: {
                 timeCreate: Date.now(),
@@ -32,7 +32,7 @@ export class SessionService {
         const messageId = `msg_${randomUUID()}`;
 
         this.events.publish({
-            aggrateId: sessionId,
+            aggregateId: sessionId,
             type: 'message.append',
             data: {
                 messageId: messageId,
@@ -53,7 +53,7 @@ export class SessionService {
         error: string,
     ): void {
         this.events.publish({
-            aggrateId: sessionId,
+            aggregateId: sessionId,
             type: "step.failed",
             data: {
                 messageId: messageId,
@@ -64,7 +64,7 @@ export class SessionService {
 
     archiveSession(sessionId: string): void {
         this.events.publish({
-            aggrateId: sessionId,
+            aggregateId: sessionId,
             type: "session.archived",
             data: {
                 timeArchived: Date.now(),
@@ -72,9 +72,17 @@ export class SessionService {
         });
     }
 
+    unarchiveSession(sessionId: string): void {
+        this.events.publish({
+            aggregateId: sessionId,
+            type: "session.unarchived",
+            data:{},
+        });
+    }
+
     deleteSession(sessionId: string): void {
         this.events.publish({
-            aggrateId: sessionId,
+            aggregateId: sessionId,
             type: 'session.deleted',
             data: {},
         });

@@ -14,19 +14,19 @@ import type {
 export class EventService {
     constructor(private readonly db: AppDatabase) {}
 
-    publish(input: Publish): Event {
-        return this.db.transaction((tx) => {
+    publish(input: Publish): void {
+        this.db.transaction((tx) => {
             const current = tx
                 .select({seq: EventSequenceTable.seq})
                 .from(EventSequenceTable)
-                .where(eq(EventSequenceTable.aggregateId, input.aggrateId))
+                .where(eq(EventSequenceTable.aggregateId, input.aggregateId))
                 .get();
             
             const seq = (current?.seq ?? -1) + 1;
 
             const event = {
                 id: `evt_${randomUUID()}`,
-                aggregateId: input.aggrateId,
+                aggregateId: input.aggregateId,
                 seq: seq,
                 type: input.type,
                 data: input.data,

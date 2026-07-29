@@ -23,6 +23,8 @@ export interface EventDataByType {
         timeArchived: number;
     };
 
+    "session.unarchived": Record<string, never>;
+
     "session.deleted": Record<string, never>;
 }
 
@@ -42,7 +44,7 @@ export type Event = {
 
 export type Publish = {
     [T in EventType]:{
-        aggrateId: string;
+        aggregateId: string;
         type: T;
         data: EventDataByType[T];
     }

@@ -5,6 +5,10 @@ import {
 } from "../model.js";
 import { SessionMessage } from "../session/store.js";
 import type { Runtime } from "../runtime.js";
+import { 
+    SessionNotFoundError, 
+    SessionArchivedError
+} from "../session/error.js";
 
 type ChatData = Extract<
     CliOptions,
@@ -38,10 +42,31 @@ export async function runCommand(
     data: ChatData
 ): Promise<void> {
     const input = data.input;
-    let sessionId = data.sessionId ?? runtime.sessions.createSession();
 
     if (!input) {
         throw new Error("message cannot be empty");
+    }
+
+    let sessionId: string;
+
+    if (data.sessionId === undefined) {
+        sessionId = runtime.sessions.createSession();
+    } else {
+        const session = runtime.store.get(data.sessionId);
+
+        if (!session) {
+            throw new SessionNotFoundError(
+                data.sessionId,
+            );
+        }
+
+        if (session.timeArchived !== null) {
+            throw new SessionArchivedError(
+                session.id, session.timeArchived
+            );
+        }
+
+        sessionId = session.id;
     }
 
     runtime.sessions.appendMessage(

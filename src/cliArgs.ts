@@ -19,6 +19,10 @@ export type CliOptions =
     }
     | {
         command: "list";
+    }
+    | {
+        command: "unarchive";
+        sessionId: string;
     };
 
 
@@ -64,7 +68,7 @@ export function parseArgs(args: readonly string[]): CliOptions {
 
 
     const session = program
-        .command("sesion")
+        .command("session")
         .description("")
 
     session
@@ -89,6 +93,16 @@ export function parseArgs(args: readonly string[]): CliOptions {
                 sessionId: sessionId,
             }
         });
+    
+    session
+        .command("unarchive")
+        .argument("[sessionId]")
+        .action((sessionId: string) => {
+            Option = {
+                command: "unarchive",
+                sessionId: sessionId,
+            }
+        })
     
     session
         .command("list")

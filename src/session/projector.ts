@@ -68,6 +68,18 @@ export function projectSessionEvent(
             return;
         }
 
+        case "session.unarchived": {
+            tx
+                .update(SessionTable)
+                .set({
+                    timeArchived: null,
+                })
+                .where(eq(SessionTable.id, event.aggregateId))
+                .run();
+            
+            return;
+        }
+
         case "session.deleted": {
             tx
                 .delete(SessionTable)
