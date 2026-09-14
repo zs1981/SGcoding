@@ -12,10 +12,7 @@ export type SessionItem = Pick<
 >;
 export type SessionMessage = typeof SessionMessageTable.$inferSelect;
 
-export type SessionListOptions = {
-    includeArchived?: boolean;
-    limit?: number;
-}
+
 
 export class SessionStore {
     constructor(private readonly db: AppDatabase) {};
@@ -33,19 +30,8 @@ export class SessionStore {
             .get();
     }
 
-    list(options: SessionListOptions = {},) : SessionItem[] {
-        const {
-            includeArchived = false,
-            limit,
-        } = options;
-
-        if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
-                throw RangeError(
-                    "Session list limit must be a positive integer"
-                );
-            }
-        
-        const query = this.db
+    list(maxCount: number, includeArchived: boolean) : SessionItem[] {
+        return this.db
             .select({
                 id: SessionTable.id,
                 title: SessionTable.title,
@@ -54,13 +40,10 @@ export class SessionStore {
             })
             .from(SessionTable)
             .where(includeArchived ? undefined : isNull(SessionTable.timeArchived))
-            .orderBy(
-                desc(SessionTable.timeCreate)
-            )
+            .orderBy(desc(SessionTable.timeCreate))
+            .limit(maxCount)
+            .all()
         
-        return limit === undefined
-            ? query.all()
-            : query.limit(limit).all();
     }
 
     context(sessionId: string): SessionMessage[] {

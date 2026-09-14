@@ -1,13 +1,21 @@
-import { Command } from "commander";
+import { 
+    Command,
+    Option,
+    InvalidArgumentError,
+} from "commander";
 
 export type CliOptions =
     | {
         command: "delete";
-        sessionId: string;
+        data:{
+            sessionId: string;
+        }
     }
     | {
         command: "archive";
-        sessionId: string;
+        data: {
+            sessionId: string;
+        }
     }
     | {
         command: "run";
@@ -19,17 +27,24 @@ export type CliOptions =
     }
     | {
         command: "list";
+        data: {
+            maxCount: number;
+            format: "table" | "json";
+            includeArchived: boolean;
+        };
     }
     | {
         command: "unarchive";
-        sessionId: string;
+        data: {
+            sessionId: string;
+        }
     };
 
 
 export function parseArgs(args: readonly string[]): CliOptions {
     const program = new Command();
 
-    let Option: CliOptions | undefined;
+    let CliOption: CliOptions | undefined;
 
     program
         .name("sgcoding")
@@ -42,7 +57,7 @@ export function parseArgs(args: readonly string[]): CliOptions {
         .command("run")
         .description("chat with models")
         .option("--session <sessionId>", "session")
-        .option("--model <modelId>", "model", "doubao-seed-2-0-mini-260428")
+        .option("--model [modelId]", "model", "doubao-seed-2-0-mini-260428")
         .argument("[input...]", "input message")
         .action(
             (
@@ -55,7 +70,7 @@ export function parseArgs(args: readonly string[]): CliOptions {
                     model: string,
                 }
             ) => {
-                Option = {
+                CliOption = {
                     command:"run",
                     data: {
                         sessionId: sessionId,
@@ -74,23 +89,27 @@ export function parseArgs(args: readonly string[]): CliOptions {
     session
         .command("delete")
         .description("delete a session")
-        .argument("[session-id]")
+        .argument("<sessionId>")
         .allowExcessArguments(false)
         .action((sessionId: string) => {
-            Option = {
+            CliOption = {
                 command: "delete",
-                sessionId: sessionId,
+                data: {
+                    sessionId: sessionId,
+                }
             };
         });
     
     session
         .command("archive")
         .description("achive a session")
-        .argument("[sessionId]")
+        .argument("<sessionId>")
         .action((sessionId: string) => {
-            Option = {
+            CliOption = {
                 command: "archive",
-                sessionId: sessionId,
+                data: {
+                    sessionId: sessionId,
+                }
             }
         });
     
@@ -98,26 +117,61 @@ export function parseArgs(args: readonly string[]): CliOptions {
         .command("unarchive")
         .argument("[sessionId]")
         .action((sessionId: string) => {
-            Option = {
+            CliOption = {
                 command: "unarchive",
-                sessionId: sessionId,
+                data: {
+                    sessionId: sessionId,
+                }
             }
         })
     
     session
         .command("list")
         .description("list sessions")
-        .action(() => {
-            Option = {
-                command: "list"
+        .option("-m, --max-count <count>", "maximum session count", (value: string) => {
+            const count = Number(value);
+
+            if (!Number.isInteger(count) || count <= 0) {
+                throw new InvalidArgumentError(
+                    "must be a positive integer" 
+                );
+            }
+
+            return count
+        })
+        .addOption(
+            new Option(
+                "-f, --format <format>",
+                "output format",
+            )
+                .choices(["table", 'json'])
+                .default("table")
+        )
+        .option("--incArc, --include-archived", "include archived sessions")
+        .action(({
+            maxCount = 10,
+            format,
+            includeArchived = false,
+        } : {
+            maxCount?: number,
+            format: "table" | "json",
+            includeArchived?: boolean,
+        }) => {
+            CliOption = {
+                command: "list",
+                data: {
+                    maxCount,
+                    format,
+                    includeArchived,
+                }
             }
         });
       
     program.parse(args, { from: "user" });
 
-    if (Option == undefined) {
+    if (CliOption == undefined) {
         return program.help();
     }
     
-    return Option;
+    return CliOption;
 }   

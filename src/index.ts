@@ -19,19 +19,19 @@ async function main(): Promise<void> {
             }
 
             case "delete": {
-                deleteCommand(runtime, options.sessionId);
+                deleteCommand(runtime, options.data);
 
                 return;
             }
 
             case "archive": {
-                archiveCommand(runtime, options.sessionId);
+                archiveCommand(runtime, options.data);
 
                 return;
             }
 
             case "list": {
-                listCommand(runtime);
+                listCommand(runtime, options.data);
 
                 return;
             }

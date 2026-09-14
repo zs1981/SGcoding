@@ -9,18 +9,19 @@ import {
 type ArchiveData = Extract<
     CliOptions,
     { command: "archive"}
->["sessionId"];
+>["data"];
 
 type UnArchiveData = Extract<
     CliOptions,
     { command: "unarchive"}
->["sessionId"];
+>["data"];
 
 export function archiveCommand(
     runtime: Runtime,
-    sessionId: ArchiveData,
+    data: ArchiveData,
 ): void{
-    const session = runtime.store.get(sessionId)
+    const sessionId = data.sessionId;
+    const session = runtime.store.get(sessionId);
 
     if (!session) {
         throw new SessionNotFoundError(sessionId);
@@ -28,7 +29,7 @@ export function archiveCommand(
 
     if (session.timeArchived !== null) {
         throw new SessionArchivedError(
-            session.id, session.timeArchived
+        sessionId, session.timeArchived
         );
     }
 
@@ -37,8 +38,10 @@ export function archiveCommand(
 
 export function unarchiveCommand(
     runtime: Runtime,
-    sessionId: UnArchiveData,
+    data: UnArchiveData,
 ): void{
+    const sessionId = data.sessionId;
+
     if (!runtime.store.get(sessionId)) {
         throw new SessionNotFoundError(sessionId);
     }

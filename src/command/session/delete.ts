@@ -5,15 +5,15 @@ import { SessionNotFoundError } from "../../session/error.js";
 type DeleteData = Extract<
     CliOptions,
     { command: "delete"}
->["sessionId"];
+>["data"];
 
 export function deleteCommand(
     runtime: Runtime,
-    sessionId: DeleteData,
+    data: DeleteData,
 ): void{
-    if (!runtime.store.get(sessionId)) {
-        throw new SessionNotFoundError(sessionId);
+    if (!runtime.store.get(data.sessionId)) {
+        throw new SessionNotFoundError(data.sessionId);
     }
 
-    runtime.sessions.deleteSession(sessionId);
+    runtime.sessions.deleteSession(data.sessionId);
 }
