@@ -1,8 +1,16 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 
-export function connectDatabase(DatabasePath?: string) {
+export function connectDatabase(DatabasePath: string) {
+    if (DatabasePath !== ":memory:") {
+        mkdirSync(dirname(DatabasePath), {
+            recursive: true,
+        });
+    }
+
     const client = new Database(DatabasePath);
 
     client.pragma("foreign_keys = ON");
