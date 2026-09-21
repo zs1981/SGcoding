@@ -16,3 +16,11 @@ export class SessionArchivedError extends Error {
         super(`Session(${sessionId}) was archived at ${time}`)
     }
 }
+
+export class SessionNotArchivedError extends Error {
+    readonly name = "SessionNotArchivedError";
+
+    constructor(readonly sessionId: string) {
+        super(`Session(${sessionId}) was not archived`)
+    }
+}

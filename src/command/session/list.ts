@@ -12,11 +12,6 @@ export function listCommand(
 ): void {
     const sessions = runtime.store.list(data.maxCount, data.includeArchived);
 
-    if (sessions.length === 0) {
-        console.log("暂无 Session");
-        return;
-    }
-
     switch (data.format) {
         case "json": {
             console.log(

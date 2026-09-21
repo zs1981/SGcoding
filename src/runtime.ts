@@ -1,4 +1,4 @@
-import { fileURLToPath } from "node:url";
+import { resolveDatabasePath } from "./database/path.js";
 import {
     connectDatabase,
     type AppDatabase,
@@ -7,6 +7,7 @@ import {
 import { EventService } from "./event/service.js";
 import { SessionService } from "./session/service.js";
 import { SessionStore } from "./session/store.js";
+import { askModel } from "./model/index.js";
 
 export interface Runtime {
     db: AppDatabase,
@@ -14,12 +15,18 @@ export interface Runtime {
     events: EventService,
     sessions: SessionService,
     store: SessionStore,
+    askModel: typeof askModel;
 }
 
-export function createRuntime(): Runtime {
-    const databasePath = fileURLToPath(
-        new URL("../data/sgcoding.db", import.meta.url)
-    );
+export type RuntimeOptions = {
+    databasePath?: string;
+    askModel?: typeof askModel;
+}
+
+export function createRuntime(
+    options : RuntimeOptions = {},
+): Runtime {
+    const databasePath = resolveDatabasePath(options.databasePath);
 
     const { db, client } = connectDatabase(databasePath);
     
@@ -33,5 +40,6 @@ export function createRuntime(): Runtime {
         events,
         sessions,
         store,
+        askModel: options.askModel ?? askModel,
     };
 }

@@ -2,7 +2,8 @@ import type { CliOptions } from "../../cliArgs.js";
 import type { Runtime } from "../../runtime.js";
 import { 
     SessionNotFoundError, 
-    SessionArchivedError
+    SessionArchivedError,
+    SessionNotArchivedError
 } from "../../session/error.js";
 
 
@@ -41,9 +42,14 @@ export function unarchiveCommand(
     data: UnArchiveData,
 ): void{
     const sessionId = data.sessionId;
+    const session = runtime.store.get(sessionId);
 
-    if (!runtime.store.get(sessionId)) {
+    if (!session) {
         throw new SessionNotFoundError(sessionId);
+    }
+
+    if (session.timeArchived === null) {
+        throw new SessionNotArchivedError(sessionId);
     }
 
     runtime.sessions.unarchiveSession(sessionId);

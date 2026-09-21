@@ -4,7 +4,7 @@ import {
     SessionMessageTable,
     SessionTable,
 } from "../database/schema.js"
-import { title } from "node:process";
+
 
 export type SessionItem = Pick<
     typeof SessionTable.$inferSelect,

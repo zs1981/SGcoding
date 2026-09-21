@@ -49,15 +49,15 @@ export function parseArgs(args: readonly string[]): CliOptions {
     program
         .name("sgcoding")
         .description("SGcoding command line interface")
-        .version("0.0.1")
+        .version("0.0.3")
         .showHelpAfterError();
     
 
     program
         .command("run")
         .description("chat with models")
-        .option("--session <sessionId>", "session")
-        .option("--model [modelId]", "model", "doubao-seed-2-0-mini-260428")
+        .option("--session <session-id>", "session")  // "ses_94b9d30d-a51b-48d4-a708-ab25482043e7"
+        .option("--model <model-id>", "model", "ark/doubao-seed-2-0-mini-260428")
         .argument("[input...]", "input message")
         .action(
             (
@@ -115,7 +115,7 @@ export function parseArgs(args: readonly string[]): CliOptions {
     
     session
         .command("unarchive")
-        .argument("[sessionId]")
+        .argument("<session-id>")
         .action((sessionId: string) => {
             CliOption = {
                 command: "unarchive",

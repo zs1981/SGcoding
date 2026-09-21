@@ -1,8 +1,5 @@
 import type { CliOptions } from "../cliArgs.js";
-import {
-    type ModelMessage,
-    askArkModel
-} from "../model.js";
+import { type ModelMessage } from "ai";
 import { SessionMessage } from "../session/store.js";
 import type { Runtime } from "../runtime.js";
 import { 
@@ -20,20 +17,17 @@ function toModelMessage(
 ): ModelMessage {  
     if (
         message.role !== "user" &&
-        message.role !== "assistant"
+        message.role !== "assistant" &&
+        message.role !== "system"
     ) {
         throw new Error(
             `Unknown message role: ${message.role}`,
         );
     }
+    
     return {
         role: message.role,
-        content: [
-            {
-                type: "input_text",
-                text: message.content,
-            },
-        ],
+        content: message.content,
     };
 }
 
@@ -89,7 +83,7 @@ export async function runCommand(
     let reply: string;
 
     try {
-        reply = await askArkModel(modelMessages, data.modelId);
+        reply = await runtime.askModel(modelMessages, data.modelId);
     } catch (error: unknown) {
         const errorMessage = 
             error instanceof Error
@@ -100,7 +94,7 @@ export async function runCommand(
         sessionId,
         {
             role: "assistant",
-            content: "模型请求失败",
+            content: "",
             status: "error",
             error: errorMessage,
         },);
@@ -115,4 +109,7 @@ export async function runCommand(
             content: reply,
         },
     );
+
+    console.error(`Session: ${sessionId}`);
+    console.log(reply);
 }
