@@ -16,4 +16,5 @@ export function deleteCommand(
     }
 
     runtime.sessions.deleteSession(data.sessionId);
+    console.error(`Deleted session: ${data.sessionId}`);
 }

@@ -35,6 +35,7 @@ export function archiveCommand(
     }
 
     runtime.sessions.archiveSession(sessionId);
+    console.error(`Archived session: ${sessionId}`);
 }
 
 export function unarchiveCommand(
@@ -53,4 +54,5 @@ export function unarchiveCommand(
     }
 
     runtime.sessions.unarchiveSession(sessionId);
+    console.error(`Unarchived session: ${sessionId}`);
 }
