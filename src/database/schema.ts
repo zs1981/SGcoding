@@ -39,7 +39,7 @@ export const EventSequenceTable = sqliteTable("event_sequence", {
 });
 
 export const EventTable = sqliteTable("event", {
-    id: text("id").primaryKey(),
+    eventId: text("id").primaryKey(),
     aggregateId: text("aggregate_id").notNull().references(
         () => EventSequenceTable.aggregateId, {
             onDelete: "cascade"

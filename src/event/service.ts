@@ -25,7 +25,7 @@ export class EventService {
             const seq = (current?.seq ?? -1) + 1;
 
             const event = {
-                id: `evt_${randomUUID()}`,
+                eventId: `evt_${randomUUID()}`,
                 aggregateId: input.aggregateId,
                 seq: seq,
                 type: input.type,
