@@ -3,11 +3,19 @@ import {
     type ModelMessage
  } from "ai";
 import * as Provider from "./provider.js";
+import type { AgentConfig } from "../agent/agent.js"
 
+export interface AskModelOptions {
+    agent?: AgentConfig;
+    system?: string;
+    temperature?: number;
+    maxRetries?: number;
+}
 
 export async function askModel(
     messages: readonly ModelMessage[],
     model: string,
+    options: AskModelOptions = {},
 ): Promise<string> {
     const {providerID, modelID} = Provider.parseModel(model);
 
@@ -18,7 +26,9 @@ export async function askModel(
     const result = streamText({
         model: lang,
         messages:[...messages],
-        maxRetries: 0,
+        system: options.agent?.prompt ?? options.system,
+        temperature: options.agent?.temperature ?? options.temperature,
+        maxRetries: options.maxRetries ?? 0,
         });
 
     let reply = "";

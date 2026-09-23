@@ -4,6 +4,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 type ProviderConfig = {
     name: string;
     env: string[];
+    smallModel?: string;
     options: {
         baseURL: string;
     };
@@ -15,13 +16,13 @@ type ProviderConfig = {
 export type Model = {
     id: string;
     providerID: string;
-    name: string;
 };
 
 const providers: Record<string, ProviderConfig> = {
     deepseek: {
         name: "DeepSeek",
         env: ["DEEPSEEK_API_KEY"],
+        smallModel: "deepseek-flash",
         options: {
             baseURL: "https://api.deepseek.com",
         },
@@ -38,6 +39,7 @@ const providers: Record<string, ProviderConfig> = {
     ark: {
         name: "Volcano Ark",
         env: ["ARK_API_KEY"],
+        smallModel: "doubao-seed-2-0-mini-260428",
         options: {
             baseURL: "https://ark.cn-beijing.volces.com/api/v3"
         },
@@ -139,13 +141,21 @@ export function getModel(
             throw new Error(`模型未配置：${providerID}/${modelID}`);
     }
 
-    const model = provider.models[modelID];
-
     return {
         id: modelID,
         providerID,
-        name: model.name,
     };
+}
+
+export function getSmallModel(providerID: string): Model | undefined {
+    const provider = getProvider(providerID);
+    const modelID = provider.smallModel;
+    
+    if (modelID) {
+        return getModel(providerID, modelID);
+    }
+
+    return undefined;
 }
 
 export function getLang(model: Model) {

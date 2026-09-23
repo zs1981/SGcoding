@@ -22,6 +22,7 @@ export type CliOptions =
         data: {
             sessionId?: string,
             modelId: string,
+            title?: string,
             input: string,
         };
     }
@@ -56,31 +57,34 @@ export function parseArgs(args: readonly string[]): CliOptions {
     program
         .command("run")
         .description("chat with models")
-        .option("--session <session-id>", "session")  // "ses_94b9d30d-a51b-48d4-a708-ab25482043e7"
-        .option("--model <model-id>", "model", "ark/doubao-seed-2-0-mini-260428")
+        .option("-s, --session <session-id>", "session")  // "ses_94b9d30d-a51b-48d4-a708-ab25482043e7"
+        .option("-m, --model <model-id>", "model", "ark/doubao-seed-2-0-mini-260428")
+        .option("-t, --title <title>", "title")
         .argument("[input...]", "input message")
         .action(
             (
                 inputParts: string[],
                 {
-                    session: sessionId,
-                    model: modelId,
+                    session,
+                    model,
+                    title,
                 }: {
                     session?: string,
                     model: string,
+                    title?: string,
                 }
             ) => {
                 CliOption = {
                     command:"run",
                     data: {
-                        sessionId: sessionId,
-                        modelId: modelId,
+                        sessionId: session,
+                        modelId: model,
+                        title: title,
                         input: inputParts.join(" ").trim(),
                     },
                 };
             }
         );
-
 
     const session = program
         .command("session")

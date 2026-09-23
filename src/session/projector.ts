@@ -18,6 +18,7 @@ export function projectSessionEvent(
                 .insert(SessionTable)
                 .values({
                     id: event.aggregateId,
+                    title: event.data.title,
                     timeCreate: event.data.timeCreate,
                 })
                 .run();
@@ -86,6 +87,18 @@ export function projectSessionEvent(
                 .where(eq(SessionTable.id, event.aggregateId))
                 .run();
         
+            return;
+        }
+
+        case "title.set": {
+            tx
+                .update(SessionTable)
+                .set({
+                    title: event.data.title,
+                })
+                .where(eq(SessionTable.id, event.aggregateId))
+                .run();
+
             return;
         }
 

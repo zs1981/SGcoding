@@ -2,6 +2,7 @@ import type { AppDatabase } from "../database/database.js";
 
 export interface EventDataByType {
     "session.created": {
+        title: string;
         timeCreate:number;
     };
 
@@ -26,12 +27,16 @@ export interface EventDataByType {
     "session.unarchived": Record<string, never>;
 
     "session.deleted": Record<string, never>;
+
+    "title.set": {
+        title: string,
+    }
 }
 
 export type EventType = keyof EventDataByType;
 
 type EventOf<T extends EventType> = {
-    id: string;
+    eventId: string;
     aggregateId: string;
     seq: number;
     type: T;

@@ -12,7 +12,7 @@ async function main(): Promise<void> {
     const options = parseArgs(process.argv.slice(2));
     const runtime = createRuntime({
         databasePath: ":memory:",
-        askModel: async () => "pong"
+        // askModel: async () => "pong"
     });
 
     try {

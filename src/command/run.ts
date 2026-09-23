@@ -1,35 +1,21 @@
 import type { CliOptions } from "../cliArgs.js";
-import { type ModelMessage } from "ai";
-import { SessionMessage } from "../session/store.js";
+import {
+    ensureTitle,
+    toModelMessages
+} from "../session/prompt.js"
+import { SessionItem, SessionMessage } from "../session/store.js";
 import type { Runtime } from "../runtime.js";
 import { 
     SessionNotFoundError, 
     SessionArchivedError
 } from "../session/error.js";
+import { run } from "node:test";
 
 type ChatData = Extract<
     CliOptions,
     { command: "run"}
 >["data"];
 
-function toModelMessage(
-    message: SessionMessage,
-): ModelMessage {  
-    if (
-        message.role !== "user" &&
-        message.role !== "assistant" &&
-        message.role !== "system"
-    ) {
-        throw new Error(
-            `Unknown message role: ${message.role}`,
-        );
-    }
-    
-    return {
-        role: message.role,
-        content: message.content,
-    };
-}
 
 export async function runCommand(
     runtime: Runtime,
@@ -41,12 +27,14 @@ export async function runCommand(
         throw new Error("message cannot be empty");
     }
 
-    let sessionId: string;
+    let sessionID: string;
+    let session: SessionItem | undefined;
 
     if (data.sessionId === undefined) {
-        sessionId = runtime.sessions.createSession();
+        sessionID = runtime.sessions.createSession(data.title);
+        session = runtime.store.get(sessionID);
     } else {
-        const session = runtime.store.get(data.sessionId);
+        session = runtime.store.get(data.sessionId);
 
         if (!session) {
             throw new SessionNotFoundError(
@@ -60,11 +48,11 @@ export async function runCommand(
             );
         }
 
-        sessionId = session.id;
+        sessionID = session.id;
     }
 
     runtime.sessions.appendMessage(
-        sessionId,
+        sessionID,
         {
             role: "user",
             content: input,
@@ -72,14 +60,16 @@ export async function runCommand(
         },
     )
 
-    const storeMessages = runtime.store.context(sessionId);
+    const history = runtime.store.context(sessionID);
 
-    const modelMessages = storeMessages
-        .filter((message: SessionMessage) => {
-            return message.status !== "error"
-        })
-        .map(toModelMessage)
-    
+    const modelMessages = toModelMessages(history)
+
+    if (session) {          // 总有一天我要删除你，不符合逻辑的冗余产物
+        try {
+            await ensureTitle(runtime, session, history, data.modelId)
+        } catch {}
+    };
+
     let reply: string;
 
     try {
@@ -91,7 +81,7 @@ export async function runCommand(
                 : String(error);
 
     runtime.sessions.appendMessage(
-        sessionId,
+        sessionID,
         {
             role: "assistant",
             content: "",
@@ -103,13 +93,13 @@ export async function runCommand(
     };
 
     runtime.sessions.appendMessage(
-        sessionId,
+        sessionID,
         {
             role: "assistant",
             content: reply,
         },
     );
 
-    console.error(`Session: ${sessionId}`);
+    console.error(`Session: ${sessionID}`);
     console.log(reply);
 }
