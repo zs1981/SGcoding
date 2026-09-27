@@ -1,72 +1,93 @@
-import { desc, eq, isNull, and} from "drizzle-orm";
-import type { AppDatabase } from "../database/database.js";
+import { and, desc, eq, isNull } from "drizzle-orm";
+import { Context, Effect, Layer} from "effect";
+import { Database } from "../database/index.js";
 import {
     SessionMessageTable,
     SessionTable,
-} from "../database/schema.js"
+} from "../database/schema.js";
+import { SessionNotFoundError } from "./error.js";
+import { effect } from "effect/Layer";
 
 
-export type SessionItem = Pick<
-    typeof SessionTable.$inferSelect,
-    "id" | "title" | "timeCreate" | "timeArchived"
->;
+export type SessionItem = typeof SessionTable.$inferSelect;
+
+
 export type SessionMessage = typeof SessionMessageTable.$inferSelect;
 
+export interface Interface {
+    readonly get: (sessionID: string) => Effect.Effect<SessionItem | undefined>;
 
+    readonly list: (maxCount: number, includeArchived: boolean) => Effect.Effect<SessionItem[]>;
 
-export class SessionStore {
-    constructor(private readonly db: AppDatabase) {};
-
-    get(sessionId: string): SessionItem | undefined {
-        return this.db
-            .select({
-                id: SessionTable.id,
-                title: SessionTable.title,
-                timeCreate: SessionTable.timeCreate,
-                timeArchived: SessionTable.timeArchived
-            })
-            .from(SessionTable)
-            .where(eq(SessionTable.id, sessionId))
-            .get();
-    }
-
-    list(maxCount: number, includeArchived: boolean) : SessionItem[] {
-        return this.db
-            .select({
-                id: SessionTable.id,
-                title: SessionTable.title,
-                timeCreate: SessionTable.timeCreate,
-                timeArchived: SessionTable.timeArchived,
-            })
-            .from(SessionTable)
-            .where(includeArchived ? undefined : isNull(SessionTable.timeArchived))
-            .orderBy(desc(SessionTable.timeCreate))
-            .limit(maxCount)
-            .all()
-        
-    }
-
-    context(sessionId: string): SessionMessage[] {
-        const session = this.db
-            .select()
-            .from(SessionTable)
-            .where(and(
-                isNull(SessionTable.timeArchived),
-                eq(SessionTable.id, sessionId)
-            ))
-            .get();
-
-        if (!session) {
-            throw new Error("No Session Or Achived Session");
-        }
-
-        return this.db
-            .select()
-            .from(SessionMessageTable)
-            .where(eq(SessionMessageTable.sessionId, sessionId))
-            .orderBy(SessionMessageTable.seq)
-            .all()
-    }
-
-
+    readonly context: (sesssionID: string) => Effect.Effect<SessionMessage[], Error>;
 }
+
+export class Service extends Context.Service<
+    Service,
+    Interface
+>()("sgcoding/Store") {}
+
+export const layer = Layer.effect(
+    Service,
+    Effect.gen(function* () {
+        const { db } = yield* Database.Service;
+
+        return Service.of({
+            get: (sessionID: string) => 
+                Effect.sync(() => 
+                    db.select()
+                    .from(SessionTable)
+                    .where(eq(SessionTable.id, sessionID))
+                    .get(),
+                ),
+
+            list: (maxCount: number, includeArchived: boolean) => 
+                Effect.sync(() => 
+                    db.select()
+                    .from(SessionTable)
+                    .where(
+                        includeArchived
+                            ? undefined : isNull(SessionTable.timeArchived)
+                    )
+                    .orderBy(desc(SessionTable.timeCreate))
+                    .limit(maxCount)
+                    .all(),
+                ),
+
+            context: (sessionID: string) =>
+                Effect.gen(function* () {
+                    const session = yield* Effect.sync(() => 
+                        db.select()
+                            .from(SessionTable)
+                            .where(
+                                and(
+                                    isNull(SessionTable.timeArchived),
+                                    eq(SessionTable.id, sessionID)
+                                )
+                            )
+                            .get()
+                    )
+
+                    if (!session) {
+                        return yield* Effect.fail(new SessionNotFoundError(sessionID))
+                    }
+
+                    return yield* Effect.sync(() => 
+                        db.select()
+                        .from(SessionMessageTable)
+                        .where(eq(SessionMessageTable.sessionId, sessionID))
+                        .orderBy(SessionMessageTable.seq)
+                        .all()
+                    )
+                }),
+        });
+    })
+);
+
+export const defaultLayer = layer.pipe(
+    Layer.provide(Database.defaultLayer),
+)
+
+export const testLayer = layer.pipe(
+    Layer.provideMerge(Database.testLayer),
+)

@@ -15,5 +15,6 @@ data/
 .agents/
 .codex/
 
-# person
+# person and dev
 study.md
+src/test.ts

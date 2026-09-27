@@ -1,4 +1,4 @@
-import type { AppDatabase } from "../database/database.js";
+import { Database } from "../database/index.js";
 
 export interface EventDataByType {
     "session.created": {
@@ -47,14 +47,16 @@ export type Event = {
     [T in EventType]: EventOf<T>;
 }[EventType];
 
+type PublishOf<T extends EventType> = {
+    aggregateId: string;
+    type: T;
+    data: EventDataByType[T];
+}
+
 export type Publish = {
-    [T in EventType]:{
-        aggregateId: string;
-        type: T;
-        data: EventDataByType[T];
-    }
+    [T in EventType]: PublishOf<T>
 }[EventType];
 
 export type EventTransaction = Parameters<
-    Parameters<AppDatabase["transaction"]>[0]
+    Parameters<Database.AppDatabase["transaction"]>[0]
 >[0];
