@@ -1,6 +1,9 @@
 # dependencies
 node_modules/
 
+# IDE
+.idea
+
 # build output
 dist/
 
@@ -17,4 +20,4 @@ data/
 
 # person and dev
 study.md
-src/test.ts
+tests/

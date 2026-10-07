@@ -7,6 +7,6 @@ export default defineConfig({
     dbCredentials: {
         url: "./data/sgcoding.db"
     }
-
 });
+
 
