@@ -1,4 +1,4 @@
-import type { CliOptions } from "../cliArgs.js";
+import { Command } from "commander";
 import {
     ensureTitle,
     toModelMessages
@@ -9,12 +9,8 @@ import {
     SessionNotFoundError, 
     SessionArchivedError
 } from "../session/error.js";
-import { run } from "node:test";
 
-type ChatData = Extract<
-    CliOptions,
-    { command: "run"}
->["data"];
+type
 
 
 export async function runCommand(

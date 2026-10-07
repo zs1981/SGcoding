@@ -1,17 +1,13 @@
-import { resolveDatabasePath } from "./database/path.js";
-import {
-    connectDatabase,
-    type AppDatabase,
-    type Client,
-} from "./database/database.js";
+import { Database} from "./database/index.js"
 import { EventService } from "./event/service.js";
 import { SessionService } from "./session/service.js";
 import { SessionStore } from "./session/store.js";
 import { askModel } from "./model/index.js";
+import { Effect } from "effect";
 
 export interface Runtime {
-    db: AppDatabase,
-    client: Client,
+    db: Database.AppDatabase,
+    client: Database.Client,
     events: EventService,
     sessions: SessionService,
     store: SessionStore,
@@ -24,22 +20,22 @@ export type RuntimeOptions = {
 }
 
 export function createRuntime(
-    options : RuntimeOptions = {},
-): Runtime {
-    const databasePath = resolveDatabasePath(options.databasePath);
+    options: RuntimeOptions = {}
+): Effect.Effect<Runtime, never, Database.Service> {
+    return Effect.gen(function* () {
+        const {db, client} = yield* Database.Service;
 
-    const { db, client } = connectDatabase(databasePath);
-    
-    const events = new EventService(db);
-    const sessions = new SessionService(events);
-    const store = new SessionStore(db);
+        const events = new EventService(db);
+        const sessions = new SessionService(events);
+        const store = new SessionStore(db);
 
-    return {
-        db,
-        client,
-        events,
-        sessions,
-        store,
-        askModel: options.askModel ?? askModel,
-    };
+        return {
+            db,
+            client,
+            events,
+            sessions,
+            store,
+            askModel: options.askModel ?? askModel,
+        };
+    });
 }

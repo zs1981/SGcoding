@@ -1,27 +1,24 @@
 #!/usr/bin/env node
-import { runCommand } from "./command/run.js";
+import { createRuntime } from "./runtime.js";
+import { ManagedRuntime } from "effect";
+import { Database } from "./database/index.js";
+import { parseArgs } from "./cliArgs.js";
 import { archiveCommand, unarchiveCommand } from "./command/session/archive.js"
 import { deleteCommand } from "./command/session/delete.js";
-import { parseArgs } from "./cliArgs.js";
-import { createRuntime } from "./runtime.js";
+import { runCommand } from "./command/run.js";
 import { listCommand } from "./command/session/list.js";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { fileURLToPath } from "node:url";
 
 async function main(): Promise<void> {
     const options = parseArgs(process.argv.slice(2));
-    const runtime = createRuntime({
-        databasePath: ":memory:",
-        // askModel: async () => "pong"
-    });
-
+    const appRuntime = ManagedRuntime.make(
+        Database.makeLayer(":memory:")
+    )
     try {
-        migrate(runtime.db, {
-            migrationsFolder: fileURLToPath(
-                new URL("../drizzle/", import.meta.url)
-            ),
-        });
-
+        const runtime = await appRuntime.runPromise(
+            createRuntime({
+                askModel: async () => 'pong',
+            })
+        )
 
         switch (options.command) {
             case "run": {
@@ -64,7 +61,7 @@ async function main(): Promise<void> {
 
         }
     } finally {
-        runtime.client.close();
+        await appRuntime.dispose();
     }
 }
 
