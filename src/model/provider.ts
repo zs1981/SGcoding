@@ -1,7 +1,8 @@
 import "dotenv/config";
 import { createOpenAI } from "@ai-sdk/openai";
+import { Context, Effect, Layer } from "effect";
 
-type ProviderConfig = {
+export type ProviderConfig = {
     name: string;
     env: string[];
     smallModel?: string;
@@ -14,9 +15,13 @@ type ProviderConfig = {
 };
 
 export type Model = {
-    id: string;
+    modelID: string;
     providerID: string;
 };
+
+export type LanguageModel = ReturnType<
+    ReturnType<typeof createOpenAI>["responses"]
+>;
 
 const providers: Record<string, ProviderConfig> = {
     deepseek: {
@@ -52,30 +57,25 @@ const providers: Record<string, ProviderConfig> = {
 
 };
 
-const clients = new Map<
-    string,
-    ReturnType<typeof createOpenAI>
->();
-
-const arkFetch: typeof globalThis.fetch = async (input, init) => {
+const arkFetch: typeof globalThis.fetch = async (requestInfo, init) => {
     const url =
-        typeof input === "string"
-            ? input
-            : input instanceof URL
-                ? input.href
-                : input.url;
+        typeof requestInfo === "string"
+            ? requestInfo
+            : requestInfo instanceof URL
+                ? requestInfo.href
+                : requestInfo.url;
 
     if (
         !new URL(url).pathname.endsWith("/responses") || 
         typeof init?.body !== "string"
     ) {
-        return globalThis.fetch(input, init);
+        return globalThis.fetch(requestInfo, init);
     }
 
     const body = JSON.parse(init.body);
     
     if (!Array.isArray(body.input)) {
-        return globalThis.fetch(input, init);
+        return globalThis.fetch(requestInfo, init);
     }
 
     body.input = body.input.map((item: unknown) => {
@@ -102,7 +102,7 @@ const arkFetch: typeof globalThis.fetch = async (input, init) => {
         };
     });
 
-    return globalThis.fetch(input, {
+    return globalThis.fetch(requestInfo, {
         ...init,
         body: JSON.stringify(body),
     }); 
@@ -123,65 +123,135 @@ export function parseModel(value: string) {
     return { providerID, modelID };
 }
 
-export function getProvider(provider: string): ProviderConfig {
-    if (!Object.hasOwn(providers, provider)) {
-        throw new Error(`平台不存在：${provider}`)
-    }
+export interface Interface {
+    readonly getProvider: (providerID: string) => Effect.Effect<ProviderConfig, Error>;
 
-    return providers[provider];
+    readonly getModel: (providerID: string, modelID: string) => Effect.Effect<Model, Error>;
+
+    readonly getSmallModel: (providerID: string) => Effect.Effect<Model | undefined, Error>;
+
+    readonly getLang: (model: Model) => Effect.Effect<LanguageModel, Error>;
 }
 
-export function getModel(
-    providerID: string,
-    modelID: string,
-): Model {
-    const provider = getProvider(providerID);
+export class Service extends Context.Service<
+    Service,
+    Interface
+>()("sgcoding/Provider") {}
 
-    if (!Object.hasOwn(provider.models, modelID)) {
-            throw new Error(`模型未配置：${providerID}/${modelID}`);
-    }
-
-    return {
-        id: modelID,
-        providerID,
-    };
+export function toError(error: unknown): Error {
+    return error instanceof Error
+        ? error
+        : new Error(String(error));
 }
 
-export function getSmallModel(providerID: string): Model | undefined {
-    const provider = getProvider(providerID);
-    const modelID = provider.smallModel;
-    
-    if (modelID) {
-        return getModel(providerID, modelID);
-    }
+export const layer = Layer.effect(
+    Service,
+    Effect.sync(() => {
+        const clients = new Map<string, ReturnType<typeof createOpenAI>>();
 
-    return undefined;
-}
+        const languages = new Map<string, LanguageModel>();
 
-export function getLang(model: Model) {
-    let client = clients.get(model.providerID);
+        function lookupProvider(providerID: string): ProviderConfig {
+            if (!Object.hasOwn(providers, providerID)) {
+                throw new Error("");
+            };
 
-    if (!client) {
-        const provider = getProvider(model.providerID);
-
-        const apiKey = provider.env
-            .map((name) => process.env[name])
-            .find((value) => Boolean(value));
-
-        if (!apiKey) {
-            throw new Error(`请配置环境变量：${provider.env.join(" 或 ")}`);
+            return providers[providerID]
         }
-    
 
-        client = createOpenAI({
-            baseURL: provider.options.baseURL,
-            apiKey,
-            fetch: model.providerID === "ark" ? arkFetch : undefined,
+        function lookupModel(
+            providerID: string,
+            modelID: string,
+        ) {
+            const provider = lookupProvider(providerID);
+
+            if (!Object.hasOwn(provider.models, modelID)) {
+                throw new Error();
+            }
+
+            return {
+                modelID: modelID,
+                providerID: providerID,
+            }
+        }
+
+        return Service.of ({
+            getProvider: (providerID: string) => Effect.try({
+                try: () =>  lookupProvider(providerID),
+                catch: toError,
+            }),
+
+            getModel: (providerID: string, modelID: string) => Effect.try({
+                try: () => lookupModel(providerID, modelID),
+                catch: toError,
+            }),
+
+            getSmallModel: (providerID: string) => Effect.try({
+                try: () => {
+                    const provider = lookupProvider(providerID);
+
+                    if (!provider.smallModel) {
+                        return undefined;
+                    } else {
+                        return {
+                            modelID: provider.smallModel,
+                            providerID: providerID,
+                        };
+                    }
+                },
+                catch: toError,
+            }),
+
+            getLang: (model: Model) => Effect.try({
+                try: () => {
+                    const key = JSON.stringify([
+                        model.modelID,
+                        model.providerID,
+                    ]);
+
+                    const cached = languages.get(key);
+
+                    if (cached !== undefined) return cached;
+
+                    let client = clients.get(model.providerID);
+
+                    if (client === undefined) {
+                        const provider = lookupProvider(model.providerID);
+
+                        const apiKey = provider.env
+                            .map((name) => process.env[name])
+                            .find(
+                                (value) => 
+                                    value !== undefined &&
+                                    value.trim().length > 0,
+                            );
+                        
+                        if ( apiKey === undefined) {
+                            throw new Error();
+                        }
+
+                        client = createOpenAI({
+                            baseURL: provider.options.baseURL,
+                            apiKey,
+                            fetch: model.providerID === "ark" 
+                                ? arkFetch
+                                : undefined,
+                        });
+
+                        clients.set(model.providerID, client);
+                    }
+
+                    const language = client.responses(model.modelID);
+                    
+                    languages.set(key, language);
+
+                    return language;        
+                },
+                catch: toError,
+            }),
         });
+    }),
+);
 
-        clients.set(model.providerID, client);
-    }
-
-    return client.responses(model.id);
-}
+export const defaultLayer = layer;
 
