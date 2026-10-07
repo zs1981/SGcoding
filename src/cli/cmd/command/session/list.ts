@@ -1,5 +1,5 @@
-import type { Runtime } from "../../runtime.js";
-import type { CliOptions } from "../../cliArgs.js";
+import type { Runtime } from "../../../../runtime.js";
+import type { CliOptions } from "../../../../cliArgs.js";
 
 type ListData = Extract<
     CliOptions,

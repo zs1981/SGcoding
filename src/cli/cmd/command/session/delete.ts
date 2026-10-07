@@ -1,6 +1,6 @@
-import type { CliOptions } from "../../cliArgs.js";
-import type { Runtime } from "../../runtime.js"
-import { SessionNotFoundError } from "../../session/error.js";
+import type { CliOptions } from "../../../../cliArgs.js";
+import type { Runtime } from "../../../../runtime.js"
+import { SessionNotFoundError } from "../../../../session/error.js";
 
 type DeleteData = Extract<
     CliOptions,

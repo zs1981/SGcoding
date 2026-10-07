@@ -1,5 +1,11 @@
 import { Schema } from "effect";
 
+export function toError(error: unknown): Error {
+    return error instanceof Error
+        ? error
+        : new Error(String(error));
+}
+
 export abstract class NamedError extends Error {
     abstract schema(): Schema.Top;
 

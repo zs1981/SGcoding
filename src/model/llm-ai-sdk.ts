@@ -5,6 +5,7 @@ import type {
     Tool,
     ToolSet
 } from "ai";
+import { toError } from "../util/error.js";
 import {
     FinishReason,
     ProviderMetaData,
@@ -25,12 +26,6 @@ export function apdaterState(): AdapterState {
         step: 0,
         toolNames: new Map(),
     };
-}
-
-export function toError(error: unknown): Error {
-    return error instanceof Error
-        ? error
-        : new Error(String(error));
 }
 
 function metadata(value: unknown): typeof ProviderMetaData.Type | undefined {

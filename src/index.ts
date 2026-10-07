@@ -3,10 +3,10 @@ import { createRuntime } from "./runtime.js";
 import { ManagedRuntime } from "effect";
 import { Database } from "./database/index.js";
 import { parseArgs } from "./cliArgs.js";
-import { archiveCommand, unarchiveCommand } from "./command/session/archive.js"
-import { deleteCommand } from "./command/session/delete.js";
-import { runCommand } from "./command/run.js";
-import { listCommand } from "./command/session/list.js";
+import { archiveCommand, unarchiveCommand } from "./cli/cmd/command/session/archive.js"
+import { deleteCommand } from "./cli/cmd/command/session/delete.js";
+import { runCommand } from "./cli/cmd/command/run.js";
+import { listCommand } from "./cli/cmd/command/session/list.js";
 
 async function main(): Promise<void> {
     const options = parseArgs(process.argv.slice(2));

@@ -2,13 +2,13 @@ import { Command } from "commander";
 import {
     ensureTitle,
     toModelMessages
-} from "../session/prompt.js"
-import { SessionItem, SessionMessage } from "../session/store.js";
-import type { Runtime } from "../runtime.js";
+} from "../../../session/prompt.js"
+import { SessionItem, SessionMessage } from "../../../session/store.js";
+import type { Runtime } from "../../../runtime.js";
 import { 
     SessionNotFoundError, 
     SessionArchivedError
-} from "../session/error.js";
+} from "../../../session/error.js";
 
 type
 

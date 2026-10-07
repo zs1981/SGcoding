@@ -1,10 +1,10 @@
-import type { CliOptions } from "../../cliArgs.js";
-import type { Runtime } from "../../runtime.js";
+import type { CliOptions } from "../../../../cliArgs.js";
+import type { Runtime } from "../../../../runtime.js";
 import { 
     SessionNotFoundError, 
     SessionArchivedError,
     SessionNotArchivedError
-} from "../../session/error.js";
+} from "../../../../session/error.js";
 
 
 type ArchiveData = Extract<

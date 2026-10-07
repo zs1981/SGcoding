@@ -3,11 +3,12 @@ import { streamText, type ModelMessage } from "ai";
 import type { AgentConfig } from "../agent/agent.js";
 import * as Provider from "./provider.js";
 import * as LLMAISDK from "./llm-ai-sdk.js";
+import { toError } from "../util/error.js";
 import type { LLMEvent } from "./llm-event.js";
 
 export interface StreamInput {
     model: string;
-    message: ModelMessage[];
+    messages: ModelMessage[];
     system?: string;
     agent?: AgentConfig;
     temperature?: number;
@@ -23,4 +24,65 @@ export class Service extends Context.Service<
     Interface
 >()("sgcoding/LLM") {}
 
+const layer = Layer.effect(
+    Service,
+    Effect.gen(function* () {
+        const provider = yield* Provider.Service;
 
+        return Service.of({
+            stream: (input) => 
+                Stream.scoped(
+                    Stream.unwrap(
+                        Effect.gen(function* () {
+                            const { providerID, modelID } = yield* Effect.try({
+                                try: () => Provider.parseModel(input.model),
+                                catch: toError,
+                            });
+
+                            const model = yield* provider.getModel(providerID, modelID);
+
+                            const lang = yield* provider.getLang(model);
+
+                            const controller = yield* Effect.acquireRelease(
+                                Effect.sync(() => new AbortController()),
+
+                                (controller) => 
+                                    Effect.sync(() => controller.abort()),
+                            );
+
+                            const response = yield* Effect.try({
+                                try: () => {
+                                    return streamText({
+                                        model: lang,
+                                        messages: [...input.messages],
+                                        system: input.agent?.prompt ?? input.system,
+                                        temperature: input.agent?.temperature ?? input.temperature, // no default value, maybe a mistake
+                                        maxRetries: input.maxRetries,
+                                        abortSignal: controller.signal,
+                                    });
+                                },
+
+                                catch: toError,
+                            })
+
+                            const state = LLMAISDK.apdaterState();
+
+                            return Stream.fromAsyncIterable(
+                                response.stream,
+                                toError,
+                            ).pipe(
+                                Stream.mapEffect((event) => 
+                                    LLMAISDK.toLLMEvents(state, event),
+                                ),
+                                Stream.flatMap((events) => Stream.fromIterable(events)),
+                            );
+                        }),
+                    ),
+                ),
+        });
+    }),
+);
+
+export const defaultLayer = layer.pipe(
+    Layer.provide(Provider.defaultLayer)
+);

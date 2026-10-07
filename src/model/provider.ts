@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { createOpenAI } from "@ai-sdk/openai";
 import { Context, Effect, Layer } from "effect";
+import { toError } from "../util/error.js";
 
 export type ProviderConfig = {
     name: string;
@@ -126,7 +127,7 @@ export function parseModel(value: string) {
 export interface Interface {
     readonly getProvider: (providerID: string) => Effect.Effect<ProviderConfig, Error>;
 
-    readonly getModel: (providerID: string, modelID: string) => Effect.Effect<Model, Error>;
+    readonly getModel: (providerID: string, modelID: string) => Effect.Effect<Model, Error>;   // 感觉可以优化一下，一个Model定义的很丑
 
     readonly getSmallModel: (providerID: string) => Effect.Effect<Model | undefined, Error>;
 
@@ -138,11 +139,6 @@ export class Service extends Context.Service<
     Interface
 >()("sgcoding/Provider") {}
 
-export function toError(error: unknown): Error {
-    return error instanceof Error
-        ? error
-        : new Error(String(error));
-}
 
 export const layer = Layer.effect(
     Service,

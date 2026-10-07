@@ -10,6 +10,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveDatabasePath } from "./path.js";
 import * as schema from "./schema.js";
+import { toError } from "../util/error.js";
 
 export type Client = InstanceType<typeof NativeDatabase>;
 export type AppDatabase = BetterSQLite3Database<typeof schema> & {
@@ -25,12 +26,6 @@ export class Service extends Context.Service<
     Service,
     Interface
 >()("sgcoding/Database") {}
-
-function toError(error: unknown): Error {
-    return error instanceof Error
-        ? error
-        : new Error(String(error));
-}
 
 export function makeLayer(path?: string) {
     return Layer.effect(
