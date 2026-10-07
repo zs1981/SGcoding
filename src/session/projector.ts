@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
-    SessionMessageTable,
     SessionTable,
+    MessageTable,
+    PartTable,
 } from "../database/schema.js";
 import type {
     Event,
@@ -23,37 +24,6 @@ export function projectSessionEvent(
                 })
                 .run();
         
-            return;
-        }
-
-        case "message.append": {
-            tx
-                .insert(SessionMessageTable)
-                .values({
-                    id: event.data.messageId,
-                    sessionId: event.aggregateId,
-                    role: event.data.role,  
-                    content: event.data.content,
-                    status: event.data.status,
-                    error: event.data.error,
-                    seq: event.seq,
-                    timeCreate: event.data.timeCreate,
-                })
-                .run();
-                
-            return;
-        }
-
-        case "step.failed": {
-            tx
-                .update(SessionMessageTable)
-                .set({
-                    status: "error",
-                    error: event.data.error,
-                })
-                .where(eq(SessionMessageTable.id, event.data.messageId))
-                .run();
-            
             return;
         }
 
@@ -97,6 +67,104 @@ export function projectSessionEvent(
                     title: event.data.title,
                 })
                 .where(eq(SessionTable.id, event.aggregateId))
+                .run();
+
+            return;
+        }
+
+        case "message.updated": {
+            const {
+                id,
+                sessionID,
+                ...data
+            } = event.data.info;
+
+            tx
+                .insert(MessageTable)
+                .values({
+                    id: id,
+                    session_id: sessionID,
+                    time_created: event.data.info.time.created,
+                    data: data,
+                })
+                .onConflictDoUpdate({
+                    target: MessageTable.id,
+                    set: {
+                        data,
+                    },
+                })
+                .run();
+
+            return;
+        }
+
+        case "message.removed": {
+            tx 
+                .delete(MessageTable)
+                .where(
+                    and(
+                        eq(
+                            MessageTable.session_id,
+                            event.data.sessionID,
+                        ),
+                        eq(
+                            MessageTable.id,
+                            event.data.messageID,
+                        ),
+                    ),
+                )
+                .run()
+            
+            return;
+        }
+
+        case "message.part.updated": {
+            const {
+                id,
+                sessionID,
+                messageID,
+                ...data
+            } = event.data.part
+
+            tx
+                .insert(PartTable)
+                .values({
+                    id,
+                    session_id: sessionID,
+                    message_id: messageID,
+                    time_created: event.data.time,
+                    data,
+                })
+                .onConflictDoUpdate({
+                    target: PartTable.id,
+                    set: {
+                        data,
+                        },
+                })
+                .run();
+
+            return;
+        }
+
+        case "message.part.removed": {
+            tx
+                .delete(PartTable)
+                .where(
+                    and(
+                        eq(
+                            PartTable.session_id,
+                            event.data.sessionID,
+                        ),
+                        eq(
+                            PartTable.message_id,
+                            event.data.messageID,
+                        ),
+                        eq(
+                            PartTable.id,
+                            event.data.partID,
+                        ),
+                    ),
+                )
                 .run();
 
             return;

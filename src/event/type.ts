@@ -1,24 +1,13 @@
 import { Database } from "../database/index.js";
+import type { MessageV2 } from "../session/message-v2.js";
 
-export interface EventDataByType {
+export * as Type from "./type.js";
+
+export interface EventData{
     "session.created": {
         title: string;
         timeCreate:number;
     };
-
-    "message.append": {
-        messageId: string;
-        role: "user" | "assistant";
-        content: string;
-        status?: "success" | "error";
-        error?: string | null;
-        timeCreate: number;
-    };
-
-    "step.failed": {
-        messageId: string;
-        error: string;
-    }
 
     "session.archived": {
         timeArchived: number;
@@ -31,31 +20,91 @@ export interface EventDataByType {
     "title.set": {
         title: string,
     }
+
+    "message.updated": {
+        info: MessageV2.Info;
+    }
+
+    "message.removed": {
+        sessionID: MessageV2.SessionID;
+        messageID: MessageV2.MessageID;
+    }
+
+    "message.part.updated": {
+        part: MessageV2.Part;
+        time: number;
+    }
+
+    "message.part.removed": {
+        sessionID: MessageV2.SessionID;
+        messageID: MessageV2.MessageID;
+        partID: MessageV2.PartID;
+    }
+
+    "message.part.delta": {
+        sessionID: MessageV2.SessionID;
+        messageID: MessageV2.MessageID;
+        partID: MessageV2.PartID;
+        field: string;
+        delta: string;
+    }
 }
 
-export type EventType = keyof EventDataByType;
+export const EventPersistence = {
+    "session.created": true,
+    "session.archived": true,
+    "session.unarchived": true,
+    "session.deleted": true,
+    "title.set": true,
+    "message.updated": true,
+    "message.removed": true,
+    "message.part.updated": true,
+    "message.part.removed": true,
+    "message.part.delta": false,
+} as const satisfies Record<EventType, boolean>;
 
-type EventOf<T extends EventType> = {
-    eventId: string;
-    aggregateId: string;
-    seq: number;
-    type: T;
-    data: EventDataByType[T];
-};
+export type EventType = keyof EventData;
 
-export type Event = {
-    [T in EventType]: EventOf<T>;
+export type PersistentEventType = {
+    [T in EventType]: (typeof EventPersistence)[T] extends true ? T : never;
 }[EventType];
 
-type PublishOf<T extends EventType> = {
-    aggregateId: string;
+export type PublishOf<T extends EventType> = {
+    aggregateId: MessageV2.SessionID;
     type: T;
-    data: EventDataByType[T];
+    data: EventData[T];
 }
 
 export type Publish = {
     [T in EventType]: PublishOf<T>
 }[EventType];
+
+export type PersistentPublish = {
+    [T in PersistentEventType]: PublishOf<T>
+}[PersistentEventType];
+
+export type PayloadOf<T extends EventType> =
+    T extends PersistentEventType
+        ? PublishOf<T> & {
+        eventId: MessageV2.EventID;
+        seq: number;
+    }
+        : PublishOf<T> & {
+        eventId: MessageV2.EventID;
+        seq?: never;
+    };
+
+export type Payload = {
+    [T in EventType]: PayloadOf<T>;
+}[EventType];
+
+export type Event = {
+    [T in PersistentEventType]: PayloadOf<T>;
+}[PersistentEventType]
+
+export function isPersistentPublish(input: Publish): input is PersistentPublish {
+    return EventPersistence[input.type];
+}
 
 export type EventTransaction = Parameters<
     Parameters<Database.AppDatabase["transaction"]>[0]

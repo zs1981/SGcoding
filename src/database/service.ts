@@ -81,7 +81,7 @@ export function makeLayer(path?: string) {
                                 import.meta.url,
                             ),
                         ),
-                    });
+                    }); 
 
                     return db;
                 },
