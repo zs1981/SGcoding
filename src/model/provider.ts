@@ -1,62 +1,14 @@
 import "dotenv/config";
 import { createOpenAI } from "@ai-sdk/openai";
 import { Context, Effect, Layer } from "effect";
+import { readFileSync } from "node:fs";
+import { parse } from "yaml";
 import { toError } from "../util/error.js";
-
-export type ProviderConfig = {
-    name: string;
-    env: string[];
-    smallModel?: string;
-    options: {
-        baseURL: string;
-    };
-    models: Record<string, {            
-        name: string;                   
-    }>;
-};
-
-export type Model = {
-    modelID: string;
-    providerID: string;
-};
+import { LLMConfig } from "./schema.js"
 
 export type LanguageModel = ReturnType<
     ReturnType<typeof createOpenAI>["responses"]
 >;
-
-const providers: Record<string, ProviderConfig> = {
-    deepseek: {
-        name: "DeepSeek",
-        env: ["DEEPSEEK_API_KEY"],
-        smallModel: "deepseek-flash",
-        options: {
-            baseURL: "https://api.deepseek.com",
-        },
-        models: {                        
-            "deepseek-flash": {
-                name: "DeepSeek Flash"  
-            },
-            "deepseek-v4-pro": {
-                name: "DeepSeek V4 Pro"
-            },
-        },
-    },
-
-    ark: {
-        name: "Volcano Ark",
-        env: ["ARK_API_KEY"],
-        smallModel: "doubao-seed-2-0-mini-260428",
-        options: {
-            baseURL: "https://ark.cn-beijing.volces.com/api/v3"
-        },
-        models: {
-            "doubao-seed-2-0-mini-260428": {
-                name: "Doubao Seed 2.0 Mini",
-            },
-        },
-    },
-
-};
 
 const arkFetch: typeof globalThis.fetch = async (requestInfo, init) => {
     const url =
@@ -109,29 +61,13 @@ const arkFetch: typeof globalThis.fetch = async (requestInfo, init) => {
     }); 
 };
 
-export function parseModel(value: string) {
-    const [provider, ...rest] = value.split("/");
-
-    const providerID = provider?.trim();
-    const modelID = rest.join("/").trim();
-
-    if (!providerID || !modelID) {
-        throw new Error(
-            "模型格式应为 平台ID/模型ID，例如 deepseek/deepseek-flash",
-        );
-    }
-
-    return { providerID, modelID };
-}
-
 export interface Interface {
-    readonly getProvider: (providerID: string) => Effect.Effect<ProviderConfig, Error>;
+    readonly parseModel: (value: string) => Effect.Effect<
+        { providerID: string, modelID: string},
+        Error
+    >;
 
-    readonly getModel: (providerID: string, modelID: string) => Effect.Effect<Model, Error>;   // 感觉可以优化一下，一个Model定义的很丑
-
-    readonly getSmallModel: (providerID: string) => Effect.Effect<Model | undefined, Error>;
-
-    readonly getLang: (model: Model) => Effect.Effect<LanguageModel, Error>;
+    readonly getLang: (providerID: string, modelID: string) => Effect.Effect<LanguageModel, Error>;
 }
 
 export class Service extends Context.Service<
@@ -139,115 +75,97 @@ export class Service extends Context.Service<
     Interface
 >()("sgcoding/Provider") {}
 
+export function makeLayer(path: string) {
+    return Layer.effect(
+        Service,
+        Effect.gen(function* ()  {
+            const clients = new Map<string, ReturnType<typeof createOpenAI>>();
 
-export const layer = Layer.effect(
-    Service,
-    Effect.sync(() => {
-        const clients = new Map<string, ReturnType<typeof createOpenAI>>();
+            const languages = new Map<string, LanguageModel>();
 
-        const languages = new Map<string, LanguageModel>();
-
-        function lookupProvider(providerID: string): ProviderConfig {
-            if (!Object.hasOwn(providers, providerID)) {
-                throw new Error("");
-            };
-
-            return providers[providerID]
-        }
-
-        function lookupModel(
-            providerID: string,
-            modelID: string,
-        ) {
-            const provider = lookupProvider(providerID);
-
-            if (!Object.hasOwn(provider.models, modelID)) {
-                throw new Error();
-            }
-
-            return {
-                modelID: modelID,
-                providerID: providerID,
-            }
-        }
-
-        return Service.of ({
-            getProvider: (providerID: string) => Effect.try({
-                try: () =>  lookupProvider(providerID),
-                catch: toError,
-            }),
-
-            getModel: (providerID: string, modelID: string) => Effect.try({
-                try: () => lookupModel(providerID, modelID),
-                catch: toError,
-            }),
-
-            getSmallModel: (providerID: string) => Effect.try({
+            const providers = yield* Effect.try({
                 try: () => {
-                    const provider = lookupProvider(providerID);
-
-                    if (!provider.smallModel) {
-                        return undefined;
-                    } else {
-                        return {
-                            modelID: provider.smallModel,
-                            providerID: providerID,
-                        };
-                    }
+                    const fileURL = new URL(path, import.meta.url);
+                    const content = readFileSync(fileURL, "utf-8");
+                    const providers: LLMConfig.ProvidersConfig = parse(content);
+                    return providers;
                 },
+                
                 catch: toError,
-            }),
+            });
 
-            getLang: (model: Model) => Effect.try({
-                try: () => {
-                    const key = JSON.stringify([
-                        model.modelID,
-                        model.providerID,
-                    ]);
+            return Service.of ({
+                parseModel: (value: string) => Effect.try({
+                    try: () => {
+                        const [provider, ...rest] = value.split("/");
 
-                    const cached = languages.get(key);
+                        const providerID = provider?.trim();
+                        const modelID = rest.join("/").trim();
 
-                    if (cached !== undefined) return cached;
+                        if (!providerID || !modelID) {
+                            throw new Error("模型格式应为 平台ID/模型ID，例如 deepseek/deepseek-flash")
+                        }
 
-                    let client = clients.get(model.providerID);
-
-                    if (client === undefined) {
-                        const provider = lookupProvider(model.providerID);
-
-                        const apiKey = provider.env
-                            .map((name) => process.env[name])
-                            .find(
-                                (value) => 
-                                    value !== undefined &&
-                                    value.trim().length > 0,
-                            );
-                        
-                        if ( apiKey === undefined) {
+                        if (!Object.hasOwn(providers, providerID)){
                             throw new Error();
                         }
 
-                        client = createOpenAI({
-                            baseURL: provider.options.baseURL,
-                            apiKey,
-                            fetch: model.providerID === "ark" 
-                                ? arkFetch
-                                : undefined,
-                        });
+                        if (!Object.hasOwn(providers[providerID].models, modelID)){
+                            throw new Error();
+                        }
 
-                        clients.set(model.providerID, client);
-                    }
+                        return { providerID, modelID };
+                    },
+                    catch: toError,
+                }),
 
-                    const language = client.responses(model.modelID);
-                    
-                    languages.set(key, language);
+                getLang: (providerID: string, modelID: string) => Effect.try({
+                    try: () => {
+                        const key = JSON.stringify([providerID, modelID]);
 
-                    return language;        
-                },
-                catch: toError,
-            }),
-        });
-    }),
-);
+                        const cached = languages.get(key);
 
-export const defaultLayer = layer;
+                        if (cached !== undefined) return cached;
+
+                        let client = clients.get(providerID);
+
+                        if (client === undefined) {
+                            const provider = providers[providerID];
+
+                            const apiKey = provider.env
+                                .map((name) => process.env[name])
+                                .find(
+                                    (value) => 
+                                        value !== undefined &&
+                                        value.trim().length > 0,
+                                );
+                            
+                            if ( apiKey === undefined) {
+                                throw new Error();
+                            }
+
+                            client = createOpenAI({
+                                baseURL: provider.options.baseURL,
+                                apiKey,
+                                fetch: providerID === "ark" 
+                                    ? arkFetch
+                                    : undefined,
+                            });
+
+                            clients.set(providerID, client);
+                        }
+
+                        const language = client.responses(modelID);
+                        
+                        languages.set(key, language);
+
+                        return language;        
+                    },
+                    catch: toError,
+                }),
+            });
+        }),
+    );
+}
+export const defaultLayer = makeLayer("../../default-provider.yaml");
 

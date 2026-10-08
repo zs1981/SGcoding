@@ -1,0 +1,21 @@
+deepseek:
+  name: "DeepSeek"
+  env:
+    - "DEEPSEEK_API_KEY"
+  options:
+    baseURL: "https://api.deepseek.com"
+  models:
+    deepseek-flash:
+      name: "DeepSeek Flash"
+    deepseek-v4-pro:
+      name: "DeepSeek V4 Pro"
+
+ark:
+  name: "Volcano Ark"
+  env:
+    - "ARK_API_KEY"
+  options:
+    baseURL: "https://ark.cn-beijing.volces.com/api/v3"
+  models:
+    doubao-seed-2-0-mini-260428:
+      name: "Doubao Seed 2.0 Mini"
