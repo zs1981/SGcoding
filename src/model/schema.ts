@@ -1,4 +1,7 @@
-import { Schema } from "effect";
+import { Schema, SchemaAST } from "effect";
+import { type ModelMessage } from "ai";
+import { type AgentConfig } from "../agent/schema.js";
+
 
 export * as LLMConfig from "./schema.js"
 
@@ -21,4 +24,11 @@ export const ProvidersConfig = Schema.Record(
 
 export type ProvidersConfig = Schema.Schema.Type<typeof ProvidersConfig>;
 
-
+export type StreamInput = {
+    model: string;
+    messages: ModelMessage[];
+    system?: string;
+    agent?: AgentConfig;
+    temperature?: number;
+    maxRetries?: number;
+};

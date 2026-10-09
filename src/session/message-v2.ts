@@ -22,20 +22,6 @@ export const SessionID = Schema.String.check(
 
 export type SessionID = typeof SessionID.Type;
 
-export const EventID = Schema.String.check(
-    Schema.isStartsWith("evt"),
-).pipe(
-    Schema.brand("EventID"),
-    withStatics((schema) => ({
-        ascending: (id?: string) => 
-            schema.make(
-                id ?? "evt_" + Identifier.ascending(),
-            )
-    })),
-);
-
-export type EventID = typeof EventID.Type;
-
 export const ProviderID = Schema.String.pipe(
     Schema.brand("ProviderV2.ID"),
 )

@@ -1,17 +1,9 @@
 import { readFileSync } from "node:fs";
+import { type AgentConfig } from "./schema.js";
 
 export const TITLE_PROMPT = readFileSync(
     new URL("./prompt/title.txt", import.meta.url), "utf-8"
 );
-
-export interface AgentConfig {
-    name: string;
-    native: boolean;
-    hidden: boolean;
-    prompt: string;
-    temperature: number;
-    model?: string;
-}
 
 const agents: Record<string, AgentConfig> = {
     title: {

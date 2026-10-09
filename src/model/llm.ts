@@ -1,9 +1,9 @@
 import { Context, Effect, Layer, Stream } from "effect";
 import { streamText, type ModelMessage } from "ai";
-import type { AgentConfig } from "../agent/agent.js";
 import * as Provider from "./provider.js";
 import * as LLMAISDK from "./llm-ai-sdk.js";
 import { toError } from "../util/error.js";
+import type { AgentConfig } from "../agent/schema.js";
 import type { LLMEvent } from "./llm-event.js";
 
 export interface StreamInput {
@@ -34,14 +34,9 @@ const layer = Layer.effect(
                 Stream.scoped(
                     Stream.unwrap(
                         Effect.gen(function* () {
-                            const { providerID, modelID } = yield* Effect.try({
-                                try: () => Provider.parseModel(input.model),
-                                catch: toError,
-                            });
+                            const { providerID, modelID } = yield provider.parseModel(input.model);
 
-                            const model = yield* provider.getModel(providerID, modelID);
-
-                            const lang = yield* provider.getLang(model);
+                            const lang = yield* provider.getLang(providerID, modelID);
 
                             const controller = yield* Effect.acquireRelease(
                                 Effect.sync(() => new AbortController()),
