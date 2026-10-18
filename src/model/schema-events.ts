@@ -1,5 +1,4 @@
-import { Schema, SchemaAST } from "effect";
-import { Tool } from "effect/unstable/ai";
+import { Schema } from "effect";
 
 export const ProviderMetaData = Schema.Record(
     Schema.String,
@@ -81,7 +80,7 @@ export const ToolOutput = Schema.Struct({
 export type ToolOutPut = typeof ToolOutput.Type;
 
 const MetaData = {
-    ProviderMetaData: Schema.optional(ProviderMetaData),
+    providerMetadata: Schema.optional(ProviderMetaData),
 }
 
 const block = {
@@ -118,12 +117,12 @@ export const LLMEvent = Schema.Union([
     }),
 
     Schema.Struct({
-        type: Schema.tag("reasoing-start"),
+        type: Schema.tag("reasoning-start"),
         ...block,
     }),
 
     Schema.Struct({
-        type: Schema.tag("reasoing-delta"),
+        type: Schema.tag("reasoning-delta"),
         ...block,
         text: Schema.String,
     }),
@@ -151,9 +150,24 @@ export const LLMEvent = Schema.Union([
     }),
 
     Schema.Struct({
+        type: Schema.tag("tool-call"),
+        ...tool,
+        input: Schema.Unknown,
+        providerExecuted: Schema.optional(Schema.Boolean),
+    }),
+
+    Schema.Struct({
         type: Schema.tag("tool-result"),
         ...tool,
         result: ToolResultValue,
+        providerExecuted: Schema.optional(Schema.Boolean),
+    }),
+
+    Schema.Struct({
+        type: Schema.tag("tool-error"),
+        ...tool,
+        message: Schema.String,
+        error: Schema.Unknown,
     }),
 
     Schema.Struct({
@@ -173,6 +187,13 @@ export const LLMEvent = Schema.Union([
         retryable: Schema.optional(Schema.Boolean),
         ...MetaData,
     }),
+
+    Schema.Struct({
+        type: Schema.tag("finish"),
+        reason: FinishReason,
+        usage: Schema.optional(Usage),
+        ...MetaData,
+    })
 ]).pipe(Schema.toTaggedUnion("type"));
 
 export type LLMEvent = Schema.Schema.Type<typeof LLMEvent>

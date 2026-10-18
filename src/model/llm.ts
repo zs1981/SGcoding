@@ -1,10 +1,10 @@
 import { Context, Effect, Layer, Stream } from "effect";
 import { streamText, type ModelMessage } from "ai";
 import * as Provider from "./provider.js";
-import * as LLMAISDK from "./llm-ai-sdk.js";
+import * as LLMAISDK from "./aisdk.js";
 import { toError } from "../util/error.js";
 import type { AgentConfig } from "../agent/schema.js";
-import type { LLMEvent } from "./llm-event.js";
+import type { LLMEvent } from "./schema-events.js";
 
 export interface StreamInput {
     model: string;
@@ -34,7 +34,7 @@ const layer = Layer.effect(
                 Stream.scoped(
                     Stream.unwrap(
                         Effect.gen(function* () {
-                            const { providerID, modelID } = yield provider.parseModel(input.model);
+                            const { providerID, modelID } = yield* provider.parseModel(input.model);
 
                             const lang = yield* provider.getLang(providerID, modelID);
 

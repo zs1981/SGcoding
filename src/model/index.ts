@@ -1,1 +1,1 @@
-export type { LLMEvent } from "./llm-event.js";
+export type { LLMEvent } from "./schema-events.js";
