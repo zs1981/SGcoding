@@ -2,7 +2,7 @@
 node_modules/
 
 # IDE
-.idea
+.vscode
 
 # build output
 dist/
@@ -21,4 +21,3 @@ data/
 
 # person and dev
 study.md
-tests/
