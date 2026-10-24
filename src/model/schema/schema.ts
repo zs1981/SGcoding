@@ -1,6 +1,6 @@
 import { Schema, SchemaAST } from "effect";
 import { type ModelMessage } from "ai";
-import { type AgentConfig } from "../agent/schema.js";
+import { type AgentConfig } from "../../agent/schema.js";
 
 
 export * as LLMConfig from "./schema.js"

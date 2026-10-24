@@ -60,7 +60,7 @@ public final class ReadFile {
                 
                 int size = 
                     text.getBytes(StandardCharsets.UTF_8).length
-                    + (line.isEmpty()? 0 : 1);
+                    + (lines.isEmpty()? 0 : 1);
                 
                 if (bytes + size > MAX_BYTES) {
                     truncated = true;

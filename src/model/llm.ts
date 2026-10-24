@@ -4,7 +4,7 @@ import * as Provider from "./provider.js";
 import * as LLMAISDK from "./aisdk.js";
 import { toError } from "../util/error.js";
 import type { AgentConfig } from "../agent/schema.js";
-import type { LLMEvent } from "./schema-events.js";
+import type { LLMEvent } from "./schema/schema-events.js";
 
 export interface StreamInput {
     model: string;

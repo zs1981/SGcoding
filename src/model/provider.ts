@@ -4,7 +4,7 @@ import { Context, Effect, Layer } from "effect";
 import { readFileSync } from "node:fs";
 import { parse } from "yaml";
 import { toError } from "../util/error.js";
-import { LLMConfig } from "./schema.js"
+import { LLMConfig } from "./schema/schema.js"
 
 export type LanguageModel = ReturnType<
     ReturnType<typeof createOpenAI>["responses"]
