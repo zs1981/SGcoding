@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import type { LLMEvent } from "../model/schema-events.js";
+import type { LLMEvent } from "../model/schema/schema-events.js";
 import { MessageV2 } from "./message-v2.js";
 import * as Session from "./service.js";
 
@@ -33,7 +33,7 @@ export function makeTextHandler(
                 end,
             };
 
-            yield* sessions.updatePart(part);
+            yield* sessions.UpdatePart(part);
 
             currentText = undefined;
             currentTextID = undefined;
@@ -62,7 +62,7 @@ export function makeTextHandler(
                     currentText = part;
                     currentTextID = event.id,
 
-                    yield* sessions.updatePart(part);
+                    yield* sessions.UpdatePart(part);
                     return;
                 };
 
@@ -79,7 +79,7 @@ export function makeTextHandler(
                         part.metadata = event.providerMetadata;
                     }
 
-                    yield* sessions.updatePartDelta(
+                    yield* sessions.DeltaPart(
                         part.sessionID,
                         part.messageID,
                         part.id,

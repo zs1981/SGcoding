@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from "effect";
-import * as Event from "../event/service.js";
+import * as Event from "./event.js";
 import { MessageID, MessageV2 } from "./message-v2.js";
 
 
@@ -10,25 +10,25 @@ export function isDefaultTitle(title: string): boolean {
 }
 
 export interface Interface {
-    readonly createSession: (title?: string) => Effect.Effect<MessageV2.SessionID>;
+    readonly CreateSession: (title?: string) => Effect.Effect<MessageV2.SessionID>;
     
-    readonly archiveSession: (sessionID: MessageV2.SessionID) => Effect.Effect<void>;
+    readonly ArchiveSession: (sessionID: MessageV2.SessionID) => Effect.Effect<void>;
 
-    readonly unarchiveSession: (sessionID: MessageV2.SessionID) => Effect.Effect<void>;
+    readonly UnarchiveSession: (sessionID: MessageV2.SessionID) => Effect.Effect<void>;
 
-    readonly deleteSession: (sessionID: MessageV2.SessionID) => Effect.Effect<void>;
+    readonly DeleteSession: (sessionID: MessageV2.SessionID) => Effect.Effect<void>;
 
-    readonly setTitle: (sessionID: MessageV2.SessionID, title: string) => Effect.Effect<void>;
+    readonly SetTitle: (sessionID: MessageV2.SessionID, title: string) => Effect.Effect<void>;
 
-    readonly updateMessage: <T extends MessageV2.Info>(info: T) => Effect.Effect<T>;
+    readonly UpdateMessage: <T extends MessageV2.Info>(info: T) => Effect.Effect<T>;
 
-    readonly updatePart: <T extends MessageV2.Part>(part: T) => Effect.Effect<T>;
+    readonly UpdatePart: <T extends MessageV2.Part>(part: T) => Effect.Effect<T>;
     
-    readonly removeMessage: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID) => Effect.Effect<MessageV2.MessageID>;
+    readonly RemoveMessage: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID) => Effect.Effect<MessageV2.MessageID>;
 
-    readonly removePart: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID, partID: MessageV2.PartID) => Effect.Effect<MessageV2.PartID>;
+    readonly RemovePart: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID, partID: MessageV2.PartID) => Effect.Effect<MessageV2.PartID>;
 
-    readonly updatePartDelta: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID, partID: MessageV2.PartID, field: string, delta: string) => Effect.Effect<void>;
+    readonly DeltaPart: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID, partID: MessageV2.PartID, field: string, delta: string) => Effect.Effect<void>;
 }
 
 export class Service extends Context.Service<
@@ -43,15 +43,16 @@ export const layer = Layer.effect(
 
 
         return Service.of({
-            createSession: (title?: string) =>
+            CreateSession: (title?: string) =>
                 Effect.gen(function* () {
                     const sessionID = MessageV2.SessionID.ascending();
                     const timeCreate = Date.now();
 
                     yield* events.publish({
-                        aggregateId: sessionID,
-                        type: "session.created",
+                        aggregateID: sessionID,
+                        type: "session.create",
                         data: {
+                            SessionID: sessionID,
                             title:
                                 title?.trim() ||
                                 `New session - ${new Date(timeCreate).toISOString()}`,
@@ -62,53 +63,60 @@ export const layer = Layer.effect(
                     return sessionID;
                 }),
             
-            archiveSession: (sessionID: MessageV2.SessionID) =>
+            ArchiveSession: (sessionID: MessageV2.SessionID) =>
                 Effect.gen(function* () {
                     yield* events.publish({
-                        aggregateId: sessionID,
-                        type: "session.archived",
+                        aggregateID: sessionID,
+                        type: "session.archive",
                         data: {
+                            SessionID: sessionID,
                             timeArchived: Date.now(),
                         }
                     })
                 }),
 
-            unarchiveSession: (sessionID: MessageV2.SessionID) =>
+            UnarchiveSession: (sessionID: MessageV2.SessionID) =>
                 Effect.gen(function* () {
                     yield* events.publish({
-                        aggregateId: sessionID,
-                        type: "session.unarchived",
-                        data: {},
+                        aggregateID: sessionID,
+                        type: "session.unarchive",
+                        data: {
+                            SessionID: sessionID,
+                        },
                     })
                 }),
 
-            setTitle: (sessionID: MessageV2.SessionID, title: string) => 
+            SetTitle: (sessionID: MessageV2.SessionID, title: string) => 
                 Effect.gen(function* () {
                     yield* events.publish({
-                        aggregateId: sessionID,
+                        aggregateID: sessionID,
                         type: "title.set",
                         data: {
-                            title: title,
+                            SessionID: sessionID,
+                            Title: title,
                         }
                     })
                 }),
 
-            deleteSession: (sessionID: MessageV2.SessionID) =>
+            DeleteSession: (sessionID: MessageV2.SessionID) =>
                 Effect.gen(function* () {
                     yield* events.publish({
-                        aggregateId: sessionID,
-                        type: "session.deleted",
-                        data: {},
+                        aggregateID: sessionID,
+                        type: "session.delete",
+                        data: {
+                            SessionID: sessionID,
+                        },
                     })
                 }),
 
-            updateMessage: <T extends MessageV2.Info>(info: T) =>
+            UpdateMessage: <T extends MessageV2.Info>(info: T) =>
                 Effect.gen(function* () {
                     yield* events.publish({
-                        aggregateId: info.sessionID,
-                        type: "message.updated",
+                        aggregateID: info.sessionID,
+                        type: "message.update",
                         data: {
-                            info
+                            SessionID: info.sessionID,
+                            Info: info
                         },
                     });
 
@@ -117,14 +125,16 @@ export const layer = Layer.effect(
                     Effect.withSpan("Sesion.updataMessage")
                 ),
             
-            updatePart: <T extends MessageV2.Part>(part: T) =>
+            UpdatePart: <T extends MessageV2.Part>(part: T) =>
                 Effect.gen(function* () {
                   yield* events.publish({
-                    aggregateId: part.sessionID,
-                    type: "message.part.updated",
+                    aggregateID: part.sessionID,
+                    type: "message.part.update",
                     data: {
-                        part: structuredClone(part),
-                        time: Date.now(),
+                        SessionID: part.sessionID,
+                        MessageID: part.messageID,
+                        Part: structuredClone(part),
+                        Time: Date.now(),
                     },
 
                   });  
@@ -134,57 +144,49 @@ export const layer = Layer.effect(
                     Effect.withSpan("Session.updataPart"),
                 ),
 
-            removeMessage: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID) => 
+            RemoveMessage: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID) => 
                 Effect.gen(function* () {
                     yield* events.publish({
-                        aggregateId: sessionID,
-                        type: "message.removed",
+                        aggregateID: sessionID,
+                        type: "message.remove",
                         data: {
-                            sessionID: sessionID,
-                            messageID: messageID,
+                            SessionID: sessionID,
+                            MessageID: messageID,
                         },
                     })
 
                     return messageID;
                 }),
             
-            removePart: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID, partID: MessageV2.PartID) =>
+            RemovePart: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID, partID: MessageV2.PartID) =>
                 Effect.gen(function* () {
                     yield* events.publish({
-                        aggregateId: sessionID,
-                        type: "message.part.removed",
+                        aggregateID: sessionID,
+                        type: "message.part.remove",
                         data: {
-                            sessionID: sessionID,
-                            messageID: messageID,
-                            partID: partID,
+                            SessionID: sessionID,
+                            MessageID: messageID,
+                            PartID: partID,
                         }
                     })
 
                     return partID;
                 }),
 
-            updatePartDelta: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID, partID: MessageV2.PartID, field: string, delta: string) => 
+            DeltaPart: (sessionID: MessageV2.SessionID, messageID: MessageV2.MessageID, partID: MessageV2.PartID, field: string, delta: string) => 
                 Effect.gen(function* () {
                     yield* events.publish({
-                        aggregateId: sessionID,
+                        aggregateID: sessionID,
                         type: "message.part.delta",
                         data: {
-                            sessionID: sessionID,
-                            messageID: messageID,
-                            partID: partID,
-                            field: field,
-                            delta: delta,
+                            SessionID: sessionID,
+                            MessageID: messageID,
+                            PartID: partID,
+                            Field: field,
+                            Delta: delta,
                         }
                     })
                 })
         });
     })
 );
-
-export const defaultLayer = layer.pipe(
-    Layer.provide(Event.defaultLayer),
-);
-
-export const testLayer = layer.pipe(
-    Layer.provideMerge(Event.testLayer)
-)

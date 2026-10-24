@@ -1,159 +1,134 @@
-import { MessageV2 } from "../session/message-v2.js";
 import { eq } from "drizzle-orm";
-import { Context, Effect, Layer, PubSub, Stream} from "effect";
-import {
+import { Context, Effect, Layer, PubSub, Stream } from "effect";
+
+import { Database } from "../database/index.js";
+import { 
     EventSequenceTable,
     EventTable
 } from "../database/schema.js";
-import { projectSessionEvent } from "../session/projector.js";
-import  {
-    type Event,
-    type EventType,
+import {
+    type Definition, 
     type Publish,
-    type PersistentPublish,
-    type Payload,
-    type PayloadOf,
-    isPersistentPublish
-} from "./type.js";
-import { Database } from "../database/index.js";
+    type Payload, 
+    type PersistentPayload, 
+    definitions
+} from "./schema/schema-event.js";
+import { EventID } from "./schema/schema.js";
+
+export type EventTransaction = Parameters<
+    Parameters<Database.AppDatabase["transaction"]>[0]
+>[0];
 
 export interface Interface {
-    readonly publish: (input: Publish) => Effect.Effect<Payload, never, never>;
+    readonly publish: (input: Publish) => Effect.Effect<Payload>;
 
-    readonly subscribe: <T extends EventType>(type: T) => Stream.Stream<PayloadOf<T>>;
+    readonly subscribe: (type: Definition["type"]) => Stream.Stream<Extract<Payload, { readonly type: typeof type}>>
 
     readonly all: () => Stream.Stream<Payload>;
 }
 
-export class Service extends Context.Service<
-    Service,
-    Interface
->()("sgcoding/Event") {}
+export interface Projector {
+    readonly project: (
+        tx: EventTransaction,
+        event: PersistentPayload,
+    ) => void;
+}
 
-export const layer = Layer.effect(
-    Service,
-    Effect.gen(function* () {
-        const { db } = yield* Database.Service;
+export interface Config<Identifier> {
+    readonly service: Context.Service<Identifier, Interface>;
+    readonly projectors?: ReadonlyArray<Projector>;
+}
 
-        const allEvents = yield* PubSub.unbounded<Payload>();
+export function makeLayer<Identifier>(
+    config: Config<Identifier>,
+) {
+    return Layer.effect(
+        config.service,
+        Effect.gen(function*() {
+            const { db } = yield* Database.Service;
 
-        const typed = new Map<EventType, PubSub.PubSub<Payload>>();
+            const bus = yield* Effect.acquireRelease(
+                PubSub.unbounded<Payload>(),
+                (bus) => PubSub.shutdown(bus),
+            );
 
-        yield* Effect.addFinalizer(() =>
-            Effect.gen(function* (){
-                yield* PubSub.shutdown(allEvents);
-
-                yield* Effect.forEach(
-                    typed.values(),
-                    PubSub.shutdown,
-                    { discard: true },
-                );
-            }),
-        );
-
-        const getOrCreate = (type: EventType) =>
-            Effect.gen(function* () {
-                const existing = typed.get(type);
-
-                if (existing) return existing;
-
-                const pubsub = yield* PubSub.unbounded<Payload>();
-
-                typed.set(type, pubsub);
-                
-                return pubsub;
-            });
-
-        const persist = (
-            input: PersistentPublish,
-        ): Effect.Effect<Event> => 
-            Effect.sync(() => 
+            const persist = (
+                input: Publish,
+            ): PersistentPayload => 
                 db.transaction((tx) => {
                     const current = tx 
-                        .select({seq: EventSequenceTable.seq})
+                        .select({ seq: EventSequenceTable.seq})
                         .from(EventSequenceTable)
-                        .where(
-                            eq(EventSequenceTable.aggregateId, input.aggregateId)
-                        )
+                        .where(eq(
+                            EventSequenceTable.aggregateId, input.aggregateID,
+                        ))
                         .get();
-
-                    const event = {
+                    
+                    const PersistentPayload = {
                         ...input,
-                        eventId: MessageV2.EventID.ascending(),
                         seq: (current?.seq ?? -1) + 1,
-                    } as Event;
-
-                    projectSessionEvent(tx, event);
-
+                        eventID: EventID.ascending()
+                    } as PersistentPayload
+                    
+                    for (const projector of config.projectors ?? []) {
+                        projector.project(tx, PersistentPayload)
+                    }
+                    
                     tx
                         .insert(EventSequenceTable)
                         .values({
-                            aggregateId: event.aggregateId,
-                            seq: event.seq,
+                            aggregateId: PersistentPayload.aggregateID,
+                            seq: PersistentPayload.seq,
                         })
                         .onConflictDoUpdate({
                             target: EventSequenceTable.aggregateId,
-                            set: { seq: event.seq } 
+                            set: { seq: PersistentPayload.seq },
                         })
                         .run();
 
                     tx
                         .insert(EventTable)
-                        .values(event)
-                        .run();
+                        .values({
+                            eventId: PersistentPayload.eventID,
+                            aggregateId: PersistentPayload.aggregateID,
+                            seq: PersistentPayload.seq,
+                            type: PersistentPayload.type,
+                            data: PersistentPayload.data,
+                        })
+
+                    return PersistentPayload;
+                })
+
+            return config.service.of({
+                publish: (input) => 
+                    Effect.gen(function* () {
+                        const definition = definitions.find(
+                            (definition) => input.type === definition.type
+                        );
+
+                        let payload;
+
+                        if (definition?.persistent) {
+                            payload = persist(input);
+                        } else {
+                            payload = {
+                                ...input,
+                                eventID: EventID.ascending(),
+                            } as Payload
+                        }
+
+                        yield* PubSub.publish(bus, payload);
+
+                        return payload;
+                    }),
                 
-                    return event;
-                }),
-            );
+                subscribe: (type) => 
+                    Stream.fromPubSub(bus).pipe(
+                        Stream.filter((event) => event?.type === type),
+                    ), 
 
-        const notifiy = (payload: Payload): Effect.Effect<void> => 
-            Effect.gen(function* () {
-                const pubsub = typed.get(payload.type);
-
-                if (pubsub) {
-                    yield* PubSub.publish(pubsub, payload);
-                }
-
-                yield* PubSub.publish(allEvents, payload);
+                all: () => Stream.fromPubSub(bus),
             })
-
-        return Service.of({
-            publish: (input: Publish) => Effect.gen(function* () {
-                let payload: Payload;
-
-                if (isPersistentPublish(input)) {
-                    payload = yield* persist(input);
-                } else {
-                    payload = {
-                        ...input,
-                        eventId: MessageV2.EventID.ascending(),
-                    }
-                }
-
-                yield* notifiy(payload);
-
-                return payload;
-            }),
-
-            subscribe: <T extends EventType>(type: T) => Stream.unwrap(
-                getOrCreate(type).pipe(
-                    Effect.map((pubsub) => 
-                        Stream.fromPubSub(pubsub),
-                    ),
-                ),
-            ).pipe(
-                Stream.map((payload) => payload as PayloadOf<T>),
-            ),
-
-            all: (): Stream.Stream<Payload> => Stream.fromPubSub(allEvents),
-        });
-    }),
-);
-
-export const defaultLayer = layer.pipe(
-    Layer.provide(Database.defaultLayer)
-)
-
-export const testLayer = layer.pipe(
-    Layer.provideMerge(Database.testLayer)
-)
+        }),
+    )
+}

@@ -5,20 +5,22 @@ import {
     PartTable,
 } from "../database/schema.js";
 import type {
-    Event,
     EventTransaction,
-} from "../event/type.js";
+    Projector as EventProjector
+} from "../event/service.js";
+import { PersistentPayload } from "../event/schema/schema-event.js"
+
 
 export function projectSessionEvent(
     tx: EventTransaction,
-    event: Event
+    event: PersistentPayload,
 ): void {
     switch (event.type) {
-        case "session.created" : {
+        case "session.create" : {
             tx
                 .insert(SessionTable)
                 .values({
-                    id: event.aggregateId,
+                    id: event.aggregateID,
                     title: event.data.title,
                     timeCreate: event.data.timeCreate,
                 })
@@ -27,34 +29,34 @@ export function projectSessionEvent(
             return;
         }
 
-        case "session.archived": {
+        case "session.archive": {
             tx
                 .update(SessionTable)
                 .set({
                     timeArchived: event.data.timeArchived,
                 })
-                .where(eq(SessionTable.id, event.aggregateId))
+                .where(eq(SessionTable.id, event.aggregateID))
                 .run();
 
             return;
         }
 
-        case "session.unarchived": {
+        case "session.unarchive": {
             tx
                 .update(SessionTable)
                 .set({
                     timeArchived: null,
                 })
-                .where(eq(SessionTable.id, event.aggregateId))
+                .where(eq(SessionTable.id, event.aggregateID))
                 .run();
             
             return;
         }
 
-        case "session.deleted": {
+        case "session.delete": {
             tx
                 .delete(SessionTable)
-                .where(eq(SessionTable.id, event.aggregateId))
+                .where(eq(SessionTable.id, event.aggregateID))
                 .run();
         
             return;
@@ -64,27 +66,27 @@ export function projectSessionEvent(
             tx
                 .update(SessionTable)
                 .set({
-                    title: event.data.title,
+                    title: event.data.Title,
                 })
-                .where(eq(SessionTable.id, event.aggregateId))
+                .where(eq(SessionTable.id, event.aggregateID))
                 .run();
 
             return;
         }
 
-        case "message.updated": {
+        case "message.update": {
             const {
                 id,
                 sessionID,
                 ...data
-            } = event.data.info;
+            } = event.data.Info;
 
             tx
                 .insert(MessageTable)
                 .values({
                     id: id,
                     session_id: sessionID,
-                    time_created: event.data.info.time.created,
+                    time_created: event.data.Info.time.created,
                     data: data,
                 })
                 .onConflictDoUpdate({
@@ -98,18 +100,18 @@ export function projectSessionEvent(
             return;
         }
 
-        case "message.removed": {
+        case "message.remove": {
             tx 
                 .delete(MessageTable)
                 .where(
                     and(
                         eq(
                             MessageTable.session_id,
-                            event.data.sessionID,
+                            event.data.SessionID,
                         ),
                         eq(
                             MessageTable.id,
-                            event.data.messageID,
+                            event.data.MessageID,
                         ),
                     ),
                 )
@@ -118,13 +120,13 @@ export function projectSessionEvent(
             return;
         }
 
-        case "message.part.updated": {
+        case "message.part.update": {
             const {
                 id,
                 sessionID,
                 messageID,
                 ...data
-            } = event.data.part
+            } = event.data.Part
 
             tx
                 .insert(PartTable)
@@ -132,7 +134,7 @@ export function projectSessionEvent(
                     id,
                     session_id: sessionID,
                     message_id: messageID,
-                    time_created: event.data.time,
+                    time_created: event.data.Time,
                     data,
                 })
                 .onConflictDoUpdate({
@@ -146,22 +148,22 @@ export function projectSessionEvent(
             return;
         }
 
-        case "message.part.removed": {
+        case "message.part.remove": {
             tx
                 .delete(PartTable)
                 .where(
                     and(
                         eq(
                             PartTable.session_id,
-                            event.data.sessionID,
+                            event.data.SessionID,
                         ),
                         eq(
                             PartTable.message_id,
-                            event.data.messageID,
+                            event.data.MessageID,
                         ),
                         eq(
                             PartTable.id,
-                            event.data.partID,
+                            event.data.PartID,
                         ),
                     ),
                 )
@@ -175,4 +177,8 @@ export function projectSessionEvent(
             throw new Error(`Unhandled Event: ${unhandledEvent}`);
         }
     }
+}
+
+export const Projector: EventProjector = {
+    project: projectSessionEvent,
 }
