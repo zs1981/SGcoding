@@ -6,9 +6,9 @@ import { Projector } from "./projector.js";
 export class Service extends Context.Service<
     Service,
     Event.Interface
->()("sgcoding/Event/Session") {}
+>()("sgcoding/Event") {}
 
-export const defaultlayer = Event.makeLayer({
+export const EventLayer = Event.EventLayer({
     service: Service,
     projectors: [Projector],
 });

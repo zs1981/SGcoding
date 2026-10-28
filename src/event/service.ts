@@ -13,11 +13,8 @@ import {
     type PersistentPayload, 
     definitions
 } from "./schema/schema-event.js";
-import { EventID } from "./schema/schema.js";
+import { EventID, EventTransaction } from "./schema/schema.js";
 
-export type EventTransaction = Parameters<
-    Parameters<Database.AppDatabase["transaction"]>[0]
->[0];
 
 export interface Interface {
     readonly publish: (input: Publish) => Effect.Effect<Payload>;
@@ -39,7 +36,7 @@ export interface Config<Identifier> {
     readonly projectors?: ReadonlyArray<Projector>;
 }
 
-export function makeLayer<Identifier>(
+export function EventLayer<Identifier>(
     config: Config<Identifier>,
 ) {
     return Layer.effect(
@@ -95,6 +92,7 @@ export function makeLayer<Identifier>(
                             type: PersistentPayload.type,
                             data: PersistentPayload.data,
                         })
+                        .run();
 
                     return PersistentPayload;
                 })

@@ -1,6 +1,7 @@
 import { Schema, type Types } from "effect";
 import { withStatics } from "../../util/schema.js";
 import { Identifier } from "../../util/identifier.js";
+import { Database } from "../../database/index.js";
 
 
 export const EventID = Schema.String.check(
@@ -55,3 +56,8 @@ export type Payload<D extends Definition> =
             readonly eventID: EventID,
         } & Sequence<D["persistent"]>
         : never
+
+
+export type EventTransaction = Parameters<
+    Parameters<Database.AppDatabase["transaction"]>[0]
+>[0];

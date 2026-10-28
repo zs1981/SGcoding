@@ -5,9 +5,9 @@ import {
     PartTable,
 } from "../database/schema.js";
 import type {
-    EventTransaction,
     Projector as EventProjector
 } from "./service.js";
+import { EventTransaction } from "./schema/schema.js";
 import { PersistentPayload } from "./schema/schema-event.js"
 
 
