@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from "effect";
-import * as Event from "./event.js";
+import * as Event from "../event/interface.js";
 import { MessageID, MessageV2 } from "./message-v2.js";
 
 

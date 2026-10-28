@@ -7,11 +7,11 @@ import {
 import type {
     EventTransaction,
     Projector as EventProjector
-} from "../event/service.js";
-import { PersistentPayload } from "../event/schema/schema-event.js"
+} from "./service.js";
+import { PersistentPayload } from "./schema/schema-event.js"
 
 
-export function projectSessionEvent(
+export function projectEvent(
     tx: EventTransaction,
     event: PersistentPayload,
 ): void {
@@ -180,5 +180,5 @@ export function projectSessionEvent(
 }
 
 export const Projector: EventProjector = {
-    project: projectSessionEvent,
+    project: projectEvent,
 }
