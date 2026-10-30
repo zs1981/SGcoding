@@ -12,7 +12,7 @@ import {
     type Payload, 
     type PersistentPayload, 
     definitions
-} from "./schema/schema-event.js";
+} from "./schema/event.js";
 import { EventID, EventTransaction } from "./schema/schema.js";
 
 

@@ -167,5 +167,5 @@ export function makeLayer(path: string) {
         }),
     );
 }
-export const defaultLayer = makeLayer("../../default-provider.yaml");
 
+export const defaultLayer = makeLayer("../../default-provider.yaml");

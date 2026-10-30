@@ -11,7 +11,7 @@ import {
     ToolResultValue,
     Usage,
     type LLMEvent
-} from "./schema/schema-events.js";
+} from "./schema/model-events.js";
 
 export type AISDKEvent = TextStreamPart<ToolSet>;
 

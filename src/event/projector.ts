@@ -8,7 +8,7 @@ import type {
     Projector as EventProjector
 } from "./service.js";
 import { EventTransaction } from "./schema/schema.js";
-import { PersistentPayload } from "./schema/schema-event.js"
+import { PersistentPayload } from "./schema/event.js"
 
 
 export function projectEvent(

@@ -5,6 +5,14 @@ import { type AgentConfig } from "../../agent/schema.js";
 
 export * as LLMConfig from "./schema.js"
 
+export const ProviderID = Schema.String.pipe(
+    Schema.brand("ProviderID")
+)
+export const ModelID = Schema.String.pipe(
+    Schema.brand("ModelID")
+)
+
+
 export const ProvidersConfig = Schema.Record(
     Schema.String,
     Schema.Struct({
