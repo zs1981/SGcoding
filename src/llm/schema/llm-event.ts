@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Schema, Types } from "effect";
 
 export const ProviderMetaData = Schema.Record(
     Schema.String,
@@ -139,8 +139,7 @@ export const LLMEvent = Schema.Union([
 
     Schema.Struct({
         type: Schema.tag("tool-input-delta"),
-        id: Schema.String,
-        name: Schema.String,
+        ...tool,
         text: Schema.String,
     }),
 
@@ -197,3 +196,6 @@ export const LLMEvent = Schema.Union([
 ]).pipe(Schema.toTaggedUnion("type"));
 
 export type LLMEvent = Schema.Schema.Type<typeof LLMEvent>
+
+
+

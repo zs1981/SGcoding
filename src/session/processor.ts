@@ -4,17 +4,18 @@ import {
     Cause,
     Layer,
     Stream,
-    Exit
+    Exit,
+    Schema
  } from "effect";
 
-import type { LLMEvent } from "../model/schema/model-events.js";
-import * as LLM from "../model/service.js";
+import type { LLMEvent } from "../llm/schema/llm-event.js";
+import * as LLM from "../llm/service.js";
 import { MessageV2 } from "./message-v2.js";
 import * as Session from "./service.js";
-import * as SchemaV1 from "./schema/schema.js"
+import * as SchemaV1 from "../schema.js"
 import { toError ,NamedError } from "../util/error.js";
-import { text } from "node:stream/consumers";
-
+import { isRecord, outputText } from "../util/util.js";
+import { updateSomeAndGetEffect } from "effect/SynchronizedRef";
 
 type TextEvent = Extract<
     LLMEvent,
@@ -31,6 +32,29 @@ type ReasoningEvent = Extract<
             | "reasoning-delta"
             | "reasoning-end"
     }
+>;
+
+type ToolEvent = Extract<
+    LLMEvent,
+    {
+        type:
+            | "tool-input-start"
+            | "tool-input-delta"
+            | "tool-input-end"
+            | "tool-call"
+            | "tool-result"
+            | "tool-error";
+    }
+>
+
+type ToolResultEvent = Extract<
+    ToolEvent,
+    { type: "tool-result" }
+>;
+
+type ToolStateCompletedOutput = Pick<
+    MessageV2.ToolStateCompleted,
+    "output" | "title" | "metadata" | "attachments"
 >;
 
 type ProcessResult = 
@@ -54,6 +78,11 @@ export function process(
             sessions,
             assistantMessage,
         );
+
+        const toolHandler = makeToolHandler(
+            sessions,
+            assistantMessage,
+        )
 
         const saveAssistant = (): Effect.Effect<void> => 
             Effect.gen(function* () {
@@ -132,6 +161,7 @@ export function process(
                     case "tool-call":
                     case "tool-result":
                     case "tool-error": {
+                        yield* toolHandler.handle(event);
                         return;
                     }
                     
@@ -205,9 +235,7 @@ export function makeTextHandler(
         Effect.gen(function*() {
             const part = active.get(id);
 
-            if (!part) {
-                return;
-            }
+            if (!part) return;
 
             const end = Date.now();
 
@@ -398,3 +426,323 @@ export function makeReasoningHandler(
         finishAll,
     };
 }
+
+function toolResultOutput(
+    event: ToolResultEvent,
+    part: MessageV2.ToolPart,
+): ToolStateCompletedOutput {
+    const result = event.result;
+    
+    if (result.type === "content") {
+        const texts: string[] = [];
+        const attachments: MessageV2.FilePart[] = [];
+
+        for (const item of result.value) {
+            if (item.type === "text") {
+                texts.push(item.text)
+            } else {
+                attachments.push({
+                    id: MessageV2.PartID.ascending(),
+                    sessionID: part.sessionID,
+                    messageID: part.messageID,
+                    type: "file",
+                    mime: item.mime,
+                    filename: item.name,
+                    url: item.uri,
+                });
+            }
+        }
+
+        return {
+            title: part.tool,
+            output: texts.join("\n"),
+            metadata: {},
+            attachments: 
+                attachments.length > 0
+                    ? attachments
+                    : undefined
+        };
+    }
+
+    const value = result.value;
+
+    if (isRecord(value) && typeof value.output === "string") {
+        const attachments = Array.isArray(value.attachments)
+            ? value.attachments.filter(
+                (item): item is MessageV2.FilePart =>
+                    Schema.is(MessageV2.FilePart)(item),
+            )
+            : undefined;
+
+        return {
+            output: value.output,
+            title: 
+                typeof value.title === "string"
+                    ? value.title
+                    : part.tool,
+            metadata: 
+                isRecord(value.metadata)
+                    ? value.metadata
+                    : {},
+            attachments,
+        }
+    }
+
+    return {
+        output: outputText(value),
+        title: part.tool,
+        metadata:
+            result.type === "json" && isRecord(value)
+                ? value
+                : {}
+    }
+}
+
+export function makeToolHandler(
+    sessions: Session.Interface,
+    assistantMessage: MessageV2.Assistant,
+) {
+    const calls = new Map<
+        string,
+        MessageV2.ToolPart
+    >();
+
+    const isSettled = (part: MessageV2.ToolPart): boolean => 
+        part.state.status === "completed" || part.state.status === "error";
+
+    const updateMetadata = (
+        part: MessageV2.ToolPart,
+        event: ToolEvent
+    ) : void => {
+        if (event.providerMetadata === undefined) return;
+
+        const incomingProviderExecuted = 
+            "providerExecuted" in event &&
+            event.providerExecuted === true;
+
+        const providerExecuted = 
+            part.metadata?.providerExecuted === true ||
+            incomingProviderExecuted;
+
+        part.metadata = {
+            ...part.metadata,
+            ...event.providerMetadata,
+            ...(providerExecuted
+                ? { providerExecuted: true}
+                : {}
+            )
+        }
+    }
+
+    const fail = (
+        part: MessageV2.ToolPart,
+        message: string,
+        incomplete = false,
+    ): Effect.Effect<void> => 
+        Effect.gen(function* () {
+            const previous = part.state;
+
+            if (isSettled(part)) return;
+
+            const end = Date.now();
+
+            part.state = { //As far as I can tell, the exported format can't be edited, so the state can't be edited.
+                status: "error",
+                input: previous.input,
+                error: message,
+                metadata: {
+                    ...(previous.status === "pending"
+                        ? {rawInput: previous.raw}
+                        : previous.metadata ?? {}),
+                    ...(incomplete
+                        ? { incomplete: true }
+                        : {})
+                },
+                time: {
+                    start: previous.status === "running"
+                        ? previous.time.start
+                        : end,
+                    end,
+                },
+            };
+
+        });
+    
+    const finishAll = (): Effect.Effect<void> => 
+        Effect.gen(function* () {
+            for (const part of calls.values()) {
+                if (isSettled(part)) {
+                    continue;
+                }
+
+                yield* fail(
+                    part,
+                    "Tool call ended before a result was received",
+                    true,
+                );
+
+            calls.clear();
+            }
+        });
+
+    const handle = (
+        event: ToolEvent,
+    ): Effect.Effect<void, Error> => 
+        Effect.gen(function* () {
+            switch (event.type) {
+                case "tool-input-start": {
+                    if (calls.has(event.id)) return;
+
+                    const part: MessageV2.ToolPart = {
+                        id: MessageV2.PartID.ascending(),
+                        sessionID: assistantMessage.sessionID,
+                        messageID: assistantMessage.id,
+                        type: "tool",
+                        callID: event.id,
+                        tool: event.name,
+                        state: {
+                            status: "pending",
+                            input: {},
+                            raw: ""
+                        },
+                        metadata: event.providerMetadata,
+                    }
+
+                    calls.set(event.id, part);
+                    yield* sessions.UpdatePart(part);
+                    return;
+                }
+
+                case "tool-input-delta": {
+                    const part = calls.get(event.id);
+
+                    if (!part || part.state.status !== "pending") return;
+
+                    if (event.name !== "unknown") {
+                        part.tool = event.name;
+                    }
+
+                    updateMetadata(part, event);
+
+                    part.state.raw += event.text;
+
+                    yield* sessions.DeltaPart(
+                        part.sessionID,
+                        part.messageID,
+                        part.id,
+                        "text",
+                        event.text,
+                    )
+                    return;
+                }
+
+                case "tool-input-end": {
+                    const part = calls.get(event.id)
+
+                    if (!part || part.state.status !== "pending") return;
+
+                    updateMetadata(part, event);
+
+                    yield* sessions.UpdatePart(part);
+                    return;
+                }
+
+                case "tool-call": {
+                    const part = calls.get(event.id);
+
+                    if (!part || isSettled(part)) return;
+
+                    if (event.name !== "unknown") {
+                        part.tool = event.name;
+                    }
+
+                    updateMetadata(part, event);
+
+                    const input = isRecord(event.input)
+                        ? event.input
+                        : { value: event.input }
+
+                    part.state = 
+                        part.state.status === "running"
+                            ? {
+                                ...part.state,
+                                input
+                            }
+                            : {
+                                status: "running",
+                                input,
+                                time: {
+                                    start: Date.now(),
+                                }
+                            };
+                    yield* sessions.UpdatePart(part);
+                    return;    
+                }
+
+                case "tool-result": {
+                    const part = calls.get(event.id);
+
+                    if (!part || part.state.status !== "running") return;
+                    
+                    if (event.name !== "unknown") {
+                        part.tool = event.name;
+                    }
+
+                    updateMetadata(part, event);
+
+                    if (event.result.type === "error") {
+                        const value = event.result.value;
+
+                        const message = yield* Effect.try({
+                            try: () => outputText(value),
+                            catch: toError,
+                        })
+
+                        yield* fail(part, message);
+                        return;
+                    }
+
+                    const output = yield* Effect.try({
+                        try: () => toolResultOutput(event, part),
+                        catch: toError,
+                    });
+
+                    part.state = {
+                        status: "completed",
+                        input: part.state.input,
+                        output: output.output,
+                        title: output.title,
+                        metadata: output.metadata,
+                        attachments: output.attachments,
+                        time: {
+                            start: part.state.time.start,
+                            end: Date.now(), 
+                        },
+                    };
+                    return;
+                }
+
+                case "tool-error": {
+                    const part = calls.get(event.id);
+
+                    if (!part || part.state.status !== "running") return;
+
+                    if (event.name !== "unknown") {
+                        part.tool = event.name;
+                    }
+
+                    updateMetadata(part, event);
+
+                    yield* fail(part, event.message);
+                    return;
+                }
+            }
+        });
+
+    return {
+        handle,
+        finishAll,
+    }
+}
+
+// an llm event comes to ToolPart or ReasoningPart. two layer interaction happens silently

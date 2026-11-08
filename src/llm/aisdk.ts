@@ -11,7 +11,7 @@ import {
     ToolResultValue,
     Usage,
     type LLMEvent
-} from "./schema/model-events.js";
+} from "./schema/llm-event.js";
 
 export type AISDKEvent = TextStreamPart<ToolSet>;
 
@@ -143,7 +143,7 @@ export function toLLMEvents(
                         id: id,
                         text: event.text,
                         providerMetadata: metadata(event.providerMetadata)
-                    }]
+                    }];
                 };
                 
                 case "text-end": {
@@ -193,7 +193,7 @@ export function toLLMEvents(
 
                 case "tool-input-start": {
                     state.toolNames.set(event.id, event.toolName);
-
+                    
                     return [{
                         type: "tool-input-start",
                         id: event.id,
@@ -203,23 +203,24 @@ export function toLLMEvents(
                 };
 
                 case "tool-input-delta": {
-                    const name = state.toolNames.get(event.id) ?? "unknown";  //
+                    const name = state.toolNames.get(event.id) ?? "unknown";  
 
                     return [{
                         type: "tool-input-delta",
                         id: event.id,
                         name: name,
                         text: event.delta ?? "",
+                        providerMetadata: metadata(event.providerMetadata),
                     }];
                 };
 
                 case "tool-input-end": {
-                    const name = state.toolNames.get(event.id) ?? "unknown";
+                    const name = state.toolNames.get(event.id) ?? "unknown"
 
                     return [{
                         type: "tool-input-end",
                         id: event.id,
-                        name,
+                        name: name,
                         providerMetadata: metadata(event.providerMetadata),
                     }];
                 };

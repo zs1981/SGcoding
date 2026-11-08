@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Schema } from "effect";
 import * as Event from "../event/interface.js";
 import { MessageID, MessageV2 } from "./message-v2.js";
-import * as SchemaV1 from "./schema/schema.js"
+import * as SchemaV1 from "../schema.js"
 
 
 export function isDefaultTitle(title: string): boolean {
