@@ -80,7 +80,6 @@ function usage(value: LanguageModelUsage): Usage {
         outputTokens: value.outputTokens,
 
         nonCachedInputTokens: value.inputTokenDetails.noCacheTokens,
-
         cacheReadInputTokens: value.inputTokenDetails.cacheReadTokens,
 
         cacheWriteInputTokens: value.inputTokenDetails.cacheWriteTokens,

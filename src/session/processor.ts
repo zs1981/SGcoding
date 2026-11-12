@@ -10,12 +10,12 @@ import {
 
 import type { LLMEvent } from "../llm/schema/llm-event.js";
 import * as LLM from "../llm/service.js";
-import { MessageV2 } from "./message-v2.js";
+import { MessageV2, ToolStateError } from "./message-v2.js";
 import * as Session from "./service.js";
 import * as SchemaV1 from "../schema.js"
 import { toError ,NamedError } from "../util/error.js";
 import { isRecord, outputText } from "../util/util.js";
-import { updateSomeAndGetEffect } from "effect/SynchronizedRef";
+import { undirected } from "effect/Graph";
 
 type TextEvent = Extract<
     LLMEvent,
@@ -55,6 +55,16 @@ type ToolResultEvent = Extract<
 type ToolStateCompletedOutput = Pick<
     MessageV2.ToolStateCompleted,
     "output" | "title" | "metadata" | "attachments"
+>;
+
+type StepFinishEvent = Extract<
+    LLMEvent,
+    { type: "step-finish"}
+>;
+
+type StepUsage = Pick<
+    MessageV2.StepFinishPart,
+    "tokens" | "cost"
 >;
 
 type ProcessResult = 
@@ -111,7 +121,26 @@ export function process(
                         yield* reasoningHandler.finishAll();
                         yield* textHandler.finishAll();
 
+                        const usage = StepUsage(event.usage);
+
+                        const part: MessageV2.StepFinishPart = {
+                            id: MessageV2.PartID.ascending(),
+                            sessionID: assistantMessage.sessionID,
+                            messageID: assistantMessage.id,
+                            type: "step-finish",
+
+                            reason: event.reason,
+                            tokens: usage.tokens,
+                            cost: usage.cost,
+                        };
+
+                        yield* sessions.UpdatePart(part);
+
                         assistantMessage.finish = event.reason;
+                        assistantMessage.tokens = structuredClone(usage.tokens);
+                        assistantMessage.cost += usage.cost;
+
+                        yield* saveAssistant();
 
                         if (event.reason === "error") {
                             return yield* Effect.fail(
@@ -121,7 +150,6 @@ export function process(
                             );
                         }
 
-                        yield* saveAssistant();
                         return;
                     }
 
@@ -201,6 +229,7 @@ export function process(
 
                 yield* textHandler.finishAll();
                 yield* reasoningHandler.finishAll();
+                yield* toolHandler.finishAll();
 
                 assistantMessage.time.completed = Date.now();
                 yield* saveAssistant();
@@ -514,20 +543,19 @@ export function makeToolHandler(
         part: MessageV2.ToolPart,
         event: ToolEvent
     ) : void => {
-        if (event.providerMetadata === undefined) return;
-
-        const incomingProviderExecuted = 
-            "providerExecuted" in event &&
-            event.providerExecuted === true;
-
-        const providerExecuted = 
+        const ProviderExecuted = 
             part.metadata?.providerExecuted === true ||
-            incomingProviderExecuted;
+            (
+                "providerExecuted" in event &&
+            event.providerExecuted === true
+            );
+
+        if (event.providerMetadata === undefined && !ProviderExecuted) return;
 
         part.metadata = {
             ...part.metadata,
             ...event.providerMetadata,
-            ...(providerExecuted
+            ...(ProviderExecuted
                 ? { providerExecuted: true}
                 : {}
             )
@@ -566,6 +594,7 @@ export function makeToolHandler(
                 },
             };
 
+            yield* sessions.UpdatePart(part);
         });
     
     const finishAll = (): Effect.Effect<void> => 
@@ -581,8 +610,8 @@ export function makeToolHandler(
                     true,
                 );
 
-            calls.clear();
             }
+            calls.clear();
         });
 
     const handle = (
@@ -682,7 +711,7 @@ export function makeToolHandler(
                 case "tool-result": {
                     const part = calls.get(event.id);
 
-                    if (!part || part.state.status !== "running") return;
+                    if (!part) return;
                     
                     if (event.name !== "unknown") {
                         part.tool = event.name;
@@ -702,6 +731,8 @@ export function makeToolHandler(
                         return;
                     }
 
+                    if (part.state.status !== "running") return;
+
                     const output = yield* Effect.try({
                         try: () => toolResultOutput(event, part),
                         catch: toError,
@@ -719,6 +750,8 @@ export function makeToolHandler(
                             end: Date.now(), 
                         },
                     };
+
+                    yield* sessions.UpdatePart(part);
                     return;
                 }
 
@@ -745,4 +778,46 @@ export function makeToolHandler(
     }
 }
 
-// an llm event comes to ToolPart or ReasoningPart. two layer interaction happens silently
+function StepUsage(
+    usage: StepFinishEvent["usage"],
+): StepUsage {
+    const safe = (value: number | undefined): number => {
+        if (value === undefined || !Number.isFinite(value)) {
+            return -1;
+        }
+
+        return value;
+    };
+
+    const input = safe(usage?.inputTokens);
+    const output = safe(usage?.outputTokens);
+    const reasoning = safe(usage?.reasoningTokens);
+
+    const cacheRead = safe(usage?.cacheReadInputTokens);
+    const cacheWrite = safe(usage?.cacheWriteInputTokens);
+
+    const nonCachedInput = 
+        usage?.nonCachedInputTokens !== undefined
+            ? safe(usage.nonCachedInputTokens)
+            : safe(input - cacheRead - cacheRead)
+
+    return {
+        cost: -1,
+        
+        tokens: {
+            total:
+                usage?.totalTokens === undefined
+                    ? undefined
+                    : safe(usage.totalTokens),
+
+            input: nonCachedInput,
+            output: safe(output - reasoning),
+            reasoning,
+
+            cache: {
+                read: cacheRead,
+                write: cacheRead,
+            }
+        }
+    }
+}
