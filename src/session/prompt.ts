@@ -1,5 +1,6 @@
 import { Context, Layer, Effect, Config } from "effect";
 
+import { createTools } from "../tools/index.js";
 import type { AgentConfig } from "../agent/schema.js";
 import * as Provider from "../llm/provider.js";
 import * as LLM from "../llm/interface.js";
@@ -174,6 +175,8 @@ export function PromptLayer<Identifier> (
                             .join("\n\n"),
                     };
 
+                    const tools = createTools(input.path.root);
+
                     for (let step = 0; step < maxSteps; step++) {
                         const history = yield* store.context(
                             input.sessionID,
@@ -231,6 +234,7 @@ export function PromptLayer<Identifier> (
                                         model: modelRef,
                                         messages,
                                         agent,
+                                        tools,
                                     },
                                 );
                             },

@@ -1,8 +1,17 @@
 import { Context, Effect, Layer, Stream } from "effect";
-import { streamText, type ModelMessage } from "ai";
+
+import { 
+    streamText,
+    isStepCount,
+    type ModelMessage,
+    type ToolSet 
+} from "ai";
+
 import * as Provider from "./provider.js";
 import * as LLMAISDK from "./aisdk.js";
+
 import { toError } from "../util/error.js";
+
 import type { AgentConfig } from "../agent/schema.js";
 import type { LLMEvent } from "./schema/llm-event.js";
 
@@ -13,6 +22,7 @@ export interface StreamInput {
     agent?: AgentConfig;
     temperature?: number;
     maxRetries?: number;
+    tools: ToolSet;
 }
 
 export interface Interface {
@@ -33,7 +43,7 @@ export function LLMLayer<Identifier>(
 
             return config.service.of({
                 stream: (input) => 
-                    Stream.scoped(
+                    Stream.scoped( //
                         Stream.unwrap(
                             Effect.gen(function* () {
                                 const { providerID, modelID } = yield* provider.parseModel(input.model);
@@ -55,6 +65,8 @@ export function LLMLayer<Identifier>(
                                             system: input.agent?.prompt ?? input.system,
                                             temperature: input.agent?.temperature ?? input.temperature,
                                             maxRetries: input.maxRetries,
+                                            tools: input.tools,
+                                            stopWhen: isStepCount(1),
                                             abortSignal: controller.signal,
                                         });
                                     },
