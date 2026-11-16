@@ -3,12 +3,9 @@ import { withStatics } from "./util/schema.js";
 import { Identifier } from "./util/identifier.js";
 import { NonNegativeInt } from "./util/schema.js";
 import { ModelID, ProviderID } from "./llm/schema/schema.js";
-import { schemaJson } from "effect/unstable/http/HttpClientResponse";
-import { schemaCookies } from "effect/unstable/http/HttpServerRequest";
-import { Tool } from "effect/unstable/ai";
+import { Session } from "node:inspector";
 
 // id portion
-
 export const SessionID = Schema.String.check(
     Schema.isStartsWith("ses"),
 ).pipe(
@@ -90,7 +87,6 @@ export const AssistantMessage = Schema.Struct({
 })
 
 // part portion
-
 const partBase = {
     SessionID: SessionID,
     MessageID: MessageID,
@@ -333,3 +329,18 @@ export const ToolPart = Schema.Struct({
 })
 
 export type ToolPart = Schema.Schema.Type<typeof ToolPart>
+
+// info portion
+const messageBase = {
+    SessionID: SessionID,
+    MessageID: MessageID,
+}
+
+export const User = Schema.Struct({
+    ...messageBase,
+    role: Schema.Literal("user"),
+    time: Schema.Struct({
+        created: Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0)),
+    }),
+    
+})

@@ -65,7 +65,8 @@ export const layer = Layer.effect(
                     .from(SessionTable)
                     .where(
                         includeArchived
-                            ? undefined : isNull(SessionTable.timeArchived)
+                            ? undefined 
+                            : isNull(SessionTable.timeArchived)
                     )
                     .orderBy(desc(SessionTable.timeCreate))
                     .limit(maxCount)

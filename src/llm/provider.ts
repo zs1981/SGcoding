@@ -75,7 +75,7 @@ export class Service extends Context.Service<
     Interface
 >()("sgcoding/Provider") {}
 
-export function makeLayer(path: string) {
+export function ProviderLayer(path: string) {
     return Layer.effect(
         Service,
         Effect.gen(function* ()  {
@@ -168,4 +168,4 @@ export function makeLayer(path: string) {
     );
 }
 
-export const defaultLayer = makeLayer("../../default-provider.yaml");
+export const defaultLayer = ProviderLayer("../../default-provider.yaml");
