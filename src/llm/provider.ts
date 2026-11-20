@@ -85,8 +85,7 @@ export function ProviderLayer(path: string) {
 
             const providers = yield* Effect.try({
                 try: () => {
-                    const fileURL = new URL(path, import.meta.url);
-                    const content = readFileSync(fileURL, "utf-8");
+                    const content = readFileSync(path, "utf-8");
                     const providers: LLMConfig.ProvidersConfig = parse(content);
                     return providers;
                 },
@@ -167,5 +166,3 @@ export function ProviderLayer(path: string) {
         }),
     );
 }
-
-export const defaultLayer = ProviderLayer("../../default-provider.yaml");
