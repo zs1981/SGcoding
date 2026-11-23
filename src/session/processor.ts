@@ -11,7 +11,7 @@ import {
 import type { LLMEvent } from "../llm/schema/llm-event.js";
 import * as LLM from "../llm/service.js";
 import { MessageV2, ToolStateError } from "./message-v2.js";
-import * as Session from "./service.js";
+import * as Session from "./session.js";
 import * as SchemaV1 from "../SchemaV1.js"
 import { toError ,NamedError } from "../util/error.js";
 import { isRecord, outputText } from "../util/util.js";

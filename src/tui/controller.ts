@@ -4,7 +4,6 @@ import { resolve } from "node:path";
 
 import * as Event from "../event/interface.js";
 import * as Session from "../session/interface.js";
-import * as Store from "../session/store-service.js";
 import * as Provider from "../llm/provider.js";
 
 import type { AgentConfig } from "../agent/schema.js";
@@ -12,8 +11,7 @@ import type { MessageV2 } from "../session/message-v2.js";
 
 import { toError } from "../util/error.js";
 import {
-    createRuntime,
-    PromptService,
+    createRuntime
 } from "../runtime.js";
 
 import {
@@ -47,10 +45,10 @@ export async function createController(
     try {
         const services = await runtime.runPromise(
             Effect.gen(function* () {
-                const sessions = yield* Session.Service;
-                const store = yield* Store.Service;
+                const sessions = yield* Session.SessionService;
+                const store = yield* Session.StoreService;
                 const events = yield* Event.Service;
-                const prompt = yield* PromptService;
+                const prompt = yield* Session.PromptService;
                 const provider = yield* Provider.Service;
 
                 yield* provider.parseModel(options.model);
@@ -97,7 +95,7 @@ export async function createController(
         let currentTask: Promise<void> | undefined;
         let closeTask: Promise<void> | undefined;
 
-        let unavailable = false;
+        let available = true;
 
         const update = (next: TuiState) => {
             if (next === state) {
@@ -143,7 +141,7 @@ export async function createController(
                                 event.type === "session.delete" ||
                                 event.type === "session.archive"
                             ) {
-                                unavailable = true;
+                                available = false;
                                 currentAbort?.abort();
 
                                 patch({
@@ -180,7 +178,7 @@ export async function createController(
                 return;
             }
 
-            unavailable = true;
+            available = false;
             currentAbort?.abort();
 
             patch({
@@ -192,18 +190,15 @@ export async function createController(
 
         await runtime.runPromise(Deferred.await(ready));
 
-        if (unavailable) {
+        if (!available) {
             throw new Error(state.error ?? "事件订阅不可用");
         }
 
-        const send = (value: string): boolean => {
-            const text = value.trim();
-
-            if (
-                text.length === 0 ||
+        const send = (text: string): boolean => {
+            if(
                 state.busy ||
                 state.closing ||
-                unavailable
+                !available
             ) {
                 return false;
             }
@@ -245,15 +240,15 @@ export async function createController(
 
                     if (
                         Exit.isFailure(exit) &&
-                        !Cause.hasInterrupts(exit.cause) &&
-                        !unavailable
+                        !Cause.hasInterrupts(exit.cause) && // 
+                        available
                     ) {
                         patch({
                             error: Cause.pretty(exit.cause)
                         });
                     }
                 } catch(error) {
-                    if (!unavailable) {
+                    if (available) {
                         patch({
                             error: toError(error).message,
                         });

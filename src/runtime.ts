@@ -3,15 +3,8 @@ import { Context, Layer, ManagedRuntime } from "effect";
 import * as Database from "./database/service.js";
 import * as Event from "./event/interface.js";
 import * as Session from "./session/interface.js";
-import * as Store from "./session/store-service.js";
-import * as Prompt from "./session/prompt.js";
-import * as  Provider from "./llm/provider.js";
+import * as Provider from "./llm/provider.js";
 import * as LLM from "./llm/interface.js";
-
-export class PromptService extends Context.Service<
-    PromptService,
-    Prompt.Interface
->()("sgcoding/Prompt") {}
 
 export type RuntimeOptions = {
     providerConfig: string;
@@ -30,17 +23,13 @@ export function createRuntime(options: RuntimeOptions) {
 
     const services = Layer.mergeAll(
         Session.SessionLayer,
-        Store.layer,
+        Session.StoreLayer,
         LLM.LLMLayer,
     ).pipe(
         Layer.provideMerge(infrasstructure),
     );
 
-    const application = Prompt.PromptLayer({
-        service: PromptService,
-    }).pipe(
-        Layer.provideMerge(services)
-    )
+    const application = Session.PromptLayer.pipe(Layer.provideMerge(services));
 
     return ManagedRuntime.make(application);
 }

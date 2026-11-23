@@ -4,7 +4,6 @@ import { useSyncExternalStore } from "react";
 import { render } from "ink";
 
 import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 
 import { MessageV2 } from "../session/message-v2.js";
 import { toError } from "../util/error.js";
@@ -47,13 +46,13 @@ function ConnectedApp({
 
 async function main() {
     const root = process.cwd();
-    const model = "ark/doubao-seed-2-0-mini-260428"
+    const model = "deepseek/deepseek-flash"
 
     if (!model) {
         throw new Error()
     };
 
-    const configuredSession = process.env.SGCONING_SESSION_ID?.trim();
+    const configuredSession = "ses_1f8108bd1001lDP95jfE0G331W";
     const providerConfig = resolve(root, process.env.SGCODING_PROVIDER_CONFIG ?? "default-provider.yaml");
 
     const controller = await createController({

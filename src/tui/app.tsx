@@ -102,18 +102,20 @@ export function App({ //
             </Box>
 
             <Box flexDirection="column">
-                {messages.length === 0 ? (
-                    <Text dimColor>
-                        输入问题，开始当前会话
-                    </Text>
-                ) : (
-                    messages.map((message) => (
-                        <MessageView
-                            key={message.info.id}
-                            message={message}
-                        />
-                    ))
-                )}
+                {
+                    messages.length === 0 
+                        ? ( <Text dimColor>
+                                输入问题，开始当前会话
+                            </Text>
+                        ) 
+                        : ( messages.map((message) => (
+                                <MessageView
+                                    key={message.info.id}
+                                    message={message}
+                                />
+                            ))
+                        )
+                }
             </Box>
 
             {error && (
@@ -124,7 +126,7 @@ export function App({ //
                 </Box>
             )}
 
-            <Box marginTop={1}>
+            <Box>
                 <Text color={busy ? "yellow" : "gray"}>
                     {closing
                         ? "正在退出..."

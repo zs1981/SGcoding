@@ -89,7 +89,7 @@ function PartView({ part }: PartViewProps) {
             return (
                 <Box flexDirection="column">
                     <Text dimColor>
-                        思考
+                        Reasoning 
                     </Text>
 
                     <Text dimColor>

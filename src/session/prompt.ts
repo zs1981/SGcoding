@@ -6,7 +6,6 @@ import * as Provider from "../llm/provider.js";
 import * as LLM from "../llm/interface.js";
 
 import * as Session from "./interface.js";
-import * as Store from "./store-service.js";
 import * as Processor from "./processor.js";
 
 import { MessageV2 } from "./message-v2.js";
@@ -59,8 +58,8 @@ export function PromptLayer<Identifier> (
     return Layer.effect(
         config.service,
         Effect.gen(function* () {
-            const sessions = yield* Session.Service;
-            const store = yield* Store.Service;
+            const sessions = yield* Session.SessionService;
+            const store = yield* Session.StoreService;
             const provider = yield* Provider.Service;
             const llm = yield* LLM.Service;
 
@@ -191,8 +190,9 @@ export function PromptLayer<Identifier> (
                         const assistant: MessageV2.Assistant = {
                             id: MessageV2.MessageID.ascending(),
                             sessionID: input.sessionID,
-                            parentID: user.id,
                             role: "assistant",
+                            parentID: user.id,
+                           
 
                             modelID: model.modelID,
                             providerID: model.providerID,
