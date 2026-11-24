@@ -8,6 +8,7 @@ import { MessageView } from "./message.js";
 
 export type AppProps = {
     project: string;
+    projectEnabled?: boolean;
     sessionTitle: string;
     model?: string;
 
@@ -26,6 +27,7 @@ export type AppProps = {
 
 export function App({ //
     project,
+    projectEnabled = false,
     sessionTitle,
     model,
     messages,
@@ -95,8 +97,10 @@ export function App({ //
                 </Text>
 
                 <Text>
-                    项目: {project}
+                    {projectEnabled ? "项目" : "目录"}: {project}
                 </Text>
+
+                <Text dimColor>模式: {projectEnabled ? "项目问答" : "普通聊天"}</Text>
 
                 <Text dimColor>
                     会话: {sessionTitle}

@@ -120,14 +120,14 @@ async function readText(
         resolve(rootPath, input.filePath),
     );
 
-    const relativePath = relative(rootPath, input.filePath);
+    const relativePath = relative(rootPath, filePath);
 
     if (
         relativePath === ".." ||
         relativePath.startsWith(`..${sep}`) ||
         isAbsolute(relativePath)
     ) {
-        throw new Error("")
+        throw new Error("文件不在项目目录内");
     }
 
     signal.throwIfAborted();

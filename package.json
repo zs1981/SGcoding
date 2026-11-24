@@ -2,20 +2,29 @@
     "name": "sgcoding",
     "version": "0.0.3",
     "type": "module",
-    "main": "dist/index.js",
+    "main": "dist/tui/index.js",
     "bin": {
-        "sgcoding": "./dist/index.js"
+        "sgcoding": "./dist/tui/index.js"
     },
+    "files": [
+        "dist/",
+        "drizzle/",
+        "provider.yaml"
+    ],
     "scripts": {
-        "start": "node dist/index.js",
+        "start": "node dist/tui/index.js",
         "typecheck": "tsc --noEmit",
-        "build": "tsc && node scripts/copy-prompts.mjs",
-        "dev": "tsx src/index.ts",
+        "test:chat": "npm run build && node tests/chat-mode.test.mjs",
+        "rag:eval": "node --import tsx scripts/eval-rag.mjs",
+        "build": "node scripts/clean-dist.mjs && tsc && node scripts/copy-prompts.mjs",
+        "prepack": "npm run build",
+        "dev": "tsx src/tui/index.tsx",
         "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
         "db:migrate": "npm run build && node dist/database/migrate.js"
     },
     "dependencies": {
         "@ai-sdk/openai": "^4.0.67",
+        "@babel/parser": "^7.29.15",
         "ai": "^7.0.102",
         "better-sqlite3": "^12.11.1",
         "commander": "^15.0.0",
@@ -30,6 +39,7 @@
         "yargs": "18.0.0"
     },
     "devDependencies": {
+        "@babel/types": "^7.29.15",
         "@types/better-sqlite3": "^7.6.13",
         "@types/node": "^26.1.1",
         "@types/react": "^19.3.0",

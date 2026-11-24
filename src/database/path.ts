@@ -1,8 +1,8 @@
-import "dotenv/config";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { loadUserEnvironment, userDirectory } from "../config.js";
 
 export function resolveDatabasePath(databasePath?: string): string {
+    loadUserEnvironment();
     const configuredPath = databasePath ?? process.env.SGCODING_DATABASE_PATH;
 
     if (configuredPath === ":memory:") {
@@ -13,7 +13,5 @@ export function resolveDatabasePath(databasePath?: string): string {
         return resolve(configuredPath);
     }
 
-    return fileURLToPath(
-        new URL("../../data/sgcoding.db", import.meta.url)
-    );
+    return resolve(userDirectory(), "sgcoding.db");
 }

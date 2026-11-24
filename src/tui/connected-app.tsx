@@ -83,6 +83,7 @@ export function ConnectedApp({ controller, onExit }: ConnectedAppProps) {
         <Box flexDirection="column">
             <App
                 project={state.project}
+                projectEnabled={state.projectEnabled}
                 sessionTitle={state.sessionTitle}
                 model={state.model}
                 messages={state.messages}

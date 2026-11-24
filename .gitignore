@@ -6,6 +6,7 @@ node_modules/
 
 # build output
 dist/
+releases/
 java/target
 
 # environment variables / secrets

@@ -1,0 +1,17 @@
+{
+  "revision": "abc19bfb38d512175a168385bd1b73bf691b71e4",
+  "questions": [
+    { "question": "createReadTool 在哪里注册？", "evidence": [["src/tools/index.ts", 8]] },
+    { "question": "toModelMessage 在哪一步接收 history？", "evidence": [["src/session/prompt.ts", 186]] },
+    { "question": "MAX_OUTPUT_BYTES 在哪里限制 read 的输出？", "evidence": [["src/tools/read.ts", 234]] },
+    { "question": "isStepCount 如何限制每次模型调用的步数？", "evidence": [["src/llm/service.ts", 69]] },
+    { "question": "退出应用时谁释放运行时？", "evidence": [["src/tui/controller.ts", 293]] },
+    { "question": "取消生成时谁发出中断信号？", "evidence": [["src/tui/controller.ts", 269]] },
+    { "question": "流式文本在界面上怎么追加？", "evidence": [["src/tui/state.ts", 131]] },
+    { "question": "工具集合从哪里进入 Prompt，又在哪里传给 streamText？", "evidence": [["src/session/prompt.ts", 177], ["src/llm/service.ts", 68]] },
+    { "question": "Provider 怎样复用模型对象和客户端？", "evidence": [["src/llm/provider.ts", 125], ["src/llm/provider.ts", 129]] },
+    { "question": "ManagedRuntime 在哪里创建，又在哪里 dispose？", "evidence": [["src/runtime.ts", 34], ["src/tui/controller.ts", 293]] },
+    { "question": "WeaviateVectorStore 的 schema 如何配置？", "evidence": [] },
+    { "question": "重排器 rerankProjectChunks 怎样计算得分？", "evidence": [] }
+  ]
+}

@@ -1,9 +1,9 @@
-import "dotenv/config";
 import { createOpenAI } from "@ai-sdk/openai";
 import { Context, Effect, Layer } from "effect";
 import { readFileSync } from "node:fs";
 import { parse } from "yaml";
 import { toError } from "../util/error.js";
+import { loadUserEnvironment, userDirectory } from "../config.js";
 import { LLMConfig } from "./schema/schema.js"
 
 export type LanguageModel = ReturnType<
@@ -93,6 +93,7 @@ export function ProviderLayer(path: string) {
 
             const providers = yield* Effect.try({
                 try: () => {
+                    loadUserEnvironment();
                     const content = readFileSync(path, "utf-8");
                     const providers: LLMConfig.ProvidersConfig = parse(content);
                     return providers;
@@ -158,7 +159,9 @@ export function ProviderLayer(path: string) {
                                 );
                             
                             if ( apiKey === undefined) {
-                                throw new Error();
+                                throw new Error(
+                                    `未配置 ${provider.env.join(" 或 ")}，请在 ${userDirectory()}/.env 中填写 API Key`,
+                                );
                             }
 
                             client = createOpenAI({

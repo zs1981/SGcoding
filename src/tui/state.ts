@@ -3,6 +3,7 @@ import { MessageV2 } from "../session/message-v2.js";
 
 export type TuiState = {
     project: string;
+    projectEnabled: boolean;
     sessionID: MessageV2.SessionID;
     sessionTitle: string;
     model: string;

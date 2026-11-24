@@ -12,6 +12,7 @@ import type { AgentConfig } from "../agent/schema.js";
 import type { MessageV2 } from "../session/message-v2.js";
 
 import { toError } from "../util/error.js";
+import { hasGitWorkspace } from "../workspace.js";
 import {
     createRuntime
 } from "../runtime.js";
@@ -79,6 +80,7 @@ export async function createController(
 
         let state: TuiState = {
             project: root,
+            projectEnabled: hasGitWorkspace(root),
             ...services.initialSession,
             model: options.model,
             busy: false,
@@ -264,6 +266,7 @@ export async function createController(
             patch({
                 busy: true,
                 error: undefined,
+                projectEnabled: hasGitWorkspace(root),
             });
 
             currentTask = (async () => {

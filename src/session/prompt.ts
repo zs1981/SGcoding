@@ -160,11 +160,17 @@ export function PromptLayer<Identifier> (
                         };
                     }
 
+                    const tools = createTools(input.path.root);
+                    const projectToolsEnabled = Object.keys(tools).length > 0;
+
                     const agent: AgentConfig = {
                         ...input.agent,
                         prompt: [
                             input.agent.prompt,
                             input.system,
+                            projectToolsEnabled
+                                ? `当前为项目问答模式，目录为 ${input.path.root}。普通聊天、问候和通用知识问题直接回答；仅当问题需要当前项目源码时才使用工具查证。`
+                                : "当前为普通聊天模式，没有启用项目工具。直接回答普通问题，不要尝试检索仓库、读取本地文件或猜测文件路径。若用户确实需要项目源码，请说明需要先在目标 Git 工作区启动，或请用户提供相关内容。",
                         ]
                             .filter(
                                 (text): text is string =>
@@ -173,8 +179,6 @@ export function PromptLayer<Identifier> (
                             )
                             .join("\n\n"),
                     };
-
-                    const tools = createTools(input.path.root);
 
                     for (let step = 0; step < maxSteps; step++) {
                         const history = yield* store.context(
