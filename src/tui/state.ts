@@ -5,6 +5,7 @@ export type TuiState = {
     project: string;
     sessionID: MessageV2.SessionID;
     sessionTitle: string;
+    model: string;
     messages: readonly MessageV2.WithParts[];
     busy: boolean;
     closing: boolean;

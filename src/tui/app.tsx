@@ -9,6 +9,7 @@ import { MessageView } from "./message.js";
 export type AppProps = {
     project: string;
     sessionTitle: string;
+    model?: string;
 
     messages: readonly MessageV2.WithParts[];
 
@@ -26,6 +27,7 @@ export type AppProps = {
 export function App({ //
     project,
     sessionTitle,
+    model,
     messages,
     busy,
     closing = false,
@@ -99,6 +101,7 @@ export function App({ //
                 <Text dimColor>
                     会话: {sessionTitle}
                 </Text>
+                {model && <Text dimColor>模型: {model}</Text>}
             </Box>
 
             <Box flexDirection="column">

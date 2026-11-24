@@ -50,6 +50,9 @@ function ToolView({ part }: ToolViewProps) {
                     <Text dimColor>
                         {state.title}
                     </Text>
+                    {part.tool === "search_project" && Array.isArray(state.metadata?.citations) &&
+                        state.metadata.citations.filter((value): value is string => typeof value === "string")
+                            .map((citation) => <Text key={citation} dimColor>{citation}</Text>)}
                 </Box>
             );
 

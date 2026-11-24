@@ -10,6 +10,12 @@ export type LanguageModel = ReturnType<
     ReturnType<typeof createOpenAI>["responses"]
 >;
 
+export type ModelOption = {
+    id: string;
+    name: string;
+    providerName: string;
+};
+
 const arkFetch: typeof globalThis.fetch = async (requestInfo, init) => {
     const url =
         typeof requestInfo === "string"
@@ -62,6 +68,8 @@ const arkFetch: typeof globalThis.fetch = async (requestInfo, init) => {
 };
 
 export interface Interface {
+    readonly listModels: () => Effect.Effect<readonly ModelOption[]>;
+
     readonly parseModel: (value: string) => Effect.Effect<
         { providerID: string, modelID: string},
         Error
@@ -94,6 +102,16 @@ export function ProviderLayer(path: string) {
             });
 
             return Service.of ({
+                listModels: () => Effect.sync(() =>
+                    Object.entries(providers).flatMap(([providerID, provider]) =>
+                        Object.entries(provider.models).map(([modelID, model]) => ({
+                            id: `${providerID}/${modelID}`,
+                            name: model.name,
+                            providerName: provider.name,
+                        })),
+                    ),
+                ),
+
                 parseModel: (value: string) => Effect.try({
                     try: () => {
                         const [provider, ...rest] = value.split("/");
